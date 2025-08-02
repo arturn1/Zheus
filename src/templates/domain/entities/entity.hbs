@@ -1,0 +1,24 @@
+using System;
+{{#hasCollections}}
+using System.Collections.Generic;
+{{/hasCollections}}
+
+namespace {{namespace}}
+{
+    public class {{name}} {{#baseSkip}}{{/baseSkip}}{{^baseSkip}}: BaseEntity {{/baseSkip}}
+    {
+        public {{name}}() 
+        {
+{{#initializeCollections}}
+            {{{.}}}
+{{/initializeCollections}}
+        }
+        
+        public {{name}}({{{structureConstructor}}})
+        {
+{{{structureEntityThis}}}
+        }
+        
+{{{structureEntityPublic}}}
+    }
+}

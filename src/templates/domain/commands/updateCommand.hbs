@@ -1,0 +1,29 @@
+using Domain.Commands.Contracts;
+using Domain.Validation;
+{{#hasCollections}}
+using System.Collections.Generic;
+{{/hasCollections}}
+{{#hasEntities}}
+using Domain.Entities;
+{{/hasEntities}}
+
+namespace Domain.Commands.{{folderName}}
+{
+
+    public class Update{{entityName}}Command : ValidatableTypes, ICommand
+    {
+        public Update{{entityName}}Command(Guid id{{#if hasConstructorParams}}, {{structureConstructor}}{{/if}})
+        {
+            this.Id = id;{{& structureEntityThis}}
+        }
+
+        public Guid Id { get; set; }{{& structureEntityPublic}}
+
+        public bool IsCommandValid()
+        {
+            ValidateGuidNotEmpty(Id, "Id");
+            
+            return this.isValid;
+        }
+    }
+}

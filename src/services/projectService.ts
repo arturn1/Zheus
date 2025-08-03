@@ -267,19 +267,13 @@ export class ProjectService {
    */
   private async replaceProgramCs(apiPath: string): Promise<void> {
     try {
-      const templatePath = path.join(__dirname, '..', 'templates', 'api', 'Program.cs.hbs');
       const programPath = path.join(apiPath, 'Program.cs');
 
-      // Verificar se o template existe
-      if (!fs.existsSync(templatePath)) {
-        console.warn(`⚠️ Template Program.cs não encontrado em: ${templatePath}`);
-        return;
-      }
-
-      // Ler o template
-      const templateContent = fs.readFileSync(templatePath, 'utf8');
+      // Obter template via TemplateManager
+      const template = TemplateManager.getTemplate('api/Program.cs.hbs');
+      const templateContent = template({});
       
-      // Escrever o novo Program.cs (sem processamento Handlebars pois não tem variáveis)
+      // Escrever o novo Program.cs
       fs.writeFileSync(programPath, templateContent, 'utf8');
       
       console.log(`✅ Program.cs customizado criado em: ${programPath}`);

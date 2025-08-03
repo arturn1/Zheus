@@ -21,17 +21,8 @@ export class IoCService {
    */
   async createNativeInjectorBootStrapper(projectPath: string): Promise<IoCResult> {
     try {
-      const templatePath = path.join(__dirname, '../templates/ioc/nativeInjectorBootStrapper.hbs');
       const iocPath = path.join(projectPath, 'IoC');
       const filePath = path.join(iocPath, 'NativeInjectorBootStrapper.cs');
-
-      // Verificar se template existe
-      if (!fs.existsSync(templatePath)) {
-        return {
-          success: false,
-          message: 'Template NativeInjectorBootStrapper não encontrado'
-        };
-      }
 
       // Garantir que diretório IoC existe
       if (!fs.existsSync(iocPath)) {

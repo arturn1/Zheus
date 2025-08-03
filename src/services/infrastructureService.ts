@@ -76,7 +76,6 @@ export class InfrastructureService {
    */
   async createDatabaseConfig(infrastructurePath: string): Promise<InfrastructureResult> {
     try {
-      const templatePath = path.join(__dirname, '../templates/infrastructure/configuration/databaseConfig.hbs');
       const configurationPath = path.join(infrastructurePath, 'Configuration');
       const filePath = path.join(configurationPath, 'DatabaseConfig.cs');
 
@@ -89,19 +88,12 @@ export class InfrastructureService {
         };
       }
 
-      // Verificar se template existe
-      if (!fs.existsSync(templatePath)) {
-        return {
-          success: false,
-          message: 'Template DatabaseConfig não encontrado'
-        };
-      }
-
-      // Ler template
-      const template = fs.readFileSync(templatePath, 'utf-8');
+      // Obter template via TemplateManager
+      const template = TemplateManager.getTemplate('infrastructure/configuration/databaseConfig.hbs');
+      const templateContent = template({});
 
       // Escrever arquivo
-      fs.writeFileSync(filePath, template);
+      fs.writeFileSync(filePath, templateContent);
 
       return {
         success: true,
@@ -123,7 +115,6 @@ export class InfrastructureService {
    */
   async createApplicationDbContext(infrastructurePath: string): Promise<InfrastructureResult> {
     try {
-      const templatePath = path.join(__dirname, '../templates/infrastructure/data/applicationDbContext.hbs');
       const dataPath = path.join(infrastructurePath, 'Data');
       const filePath = path.join(dataPath, 'ApplicationDbContext.cs');
 
@@ -136,19 +127,13 @@ export class InfrastructureService {
         };
       }
 
-      // Verificar se template existe
-      if (!fs.existsSync(templatePath)) {
-        return {
-          success: false,
-          message: 'Template ApplicationDbContext não encontrado'
-        };
-      }
-
-      // Ler template
-      const template = fs.readFileSync(templatePath, 'utf-8');
+      // Obter template via TemplateManager
+      const template = TemplateManager.getTemplate('infrastructure/data/applicationDbContext.hbs');
+      const templateContent = template({});
 
       // Escrever arquivo
-      fs.writeFileSync(filePath, template);
+      // Escrever arquivo
+      fs.writeFileSync(filePath, templateContent);
 
       return {
         success: true,
@@ -170,7 +155,6 @@ export class InfrastructureService {
    */
   async createRepositoryBase(infrastructurePath: string): Promise<InfrastructureResult> {
     try {
-      const templatePath = path.join(__dirname, '../templates/infrastructure/repositories/contracts/repositoryBase.hbs');
       const repositoryContractsPath = path.join(infrastructurePath, 'Repositories', 'Contracts');
       const filePath = path.join(repositoryContractsPath, 'RepositoryBase.cs');
 
@@ -183,19 +167,12 @@ export class InfrastructureService {
         };
       }
 
-      // Verificar se template existe
-      if (!fs.existsSync(templatePath)) {
-        return {
-          success: false,
-          message: 'Template RepositoryBase não encontrado'
-        };
-      }
-
-      // Ler template
-      const template = fs.readFileSync(templatePath, 'utf-8');
+      // Obter template via TemplateManager
+      const template = TemplateManager.getTemplate('infrastructure/repositories/contracts/repositoryBase.hbs');
+      const templateContent = template({});
 
       // Escrever arquivo
-      fs.writeFileSync(filePath, template);
+      fs.writeFileSync(filePath, templateContent);
 
       return {
         success: true,
@@ -281,7 +258,6 @@ export class InfrastructureService {
    */
   async createEntityRepository(infrastructurePath: string, entityName: string): Promise<InfrastructureResult> {
     try {
-      const templatePath = path.join(__dirname, '../templates/infrastructure/entityRepository.hbs');
       const repositoriesPath = path.join(infrastructurePath, 'Repositories');
       const filePath = path.join(repositoriesPath, `${entityName}Repository.cs`);
 
@@ -294,21 +270,12 @@ export class InfrastructureService {
         };
       }
 
-      // Ler template
-      if (!fs.existsSync(templatePath)) {
-        return {
-          success: false,
-          message: `Template entityRepository.hbs não encontrado em ${templatePath}`
-        };
-      }
-
-      const template = fs.readFileSync(templatePath, 'utf-8');
-
-      // Substituir placeholders
-      const content = template.replace(/\{\{name\}\}/g, entityName);
+      // Obter template via TemplateManager
+      const template = TemplateManager.getTemplate('infrastructure/entityRepository.hbs');
+      const templateContent = template({ name: entityName });
 
       // Escrever arquivo
-      fs.writeFileSync(filePath, content);
+      fs.writeFileSync(filePath, templateContent);
 
       return {
         success: true,

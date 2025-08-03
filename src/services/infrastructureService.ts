@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { TemplateManager } from '../utils/TemplateManager';
 
 export interface InfrastructureResult {
   success: boolean;

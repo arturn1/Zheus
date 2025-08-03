@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { TemplateManager } from '../utils/TemplateManager';
 
 export interface ApplicationResult {
   success: boolean;
@@ -71,7 +72,6 @@ export class ApplicationService {
    */
   async createDefaultDictionary(applicationPath: string): Promise<ApplicationResult> {
     try {
-      const templatePath = path.join(__dirname, '../templates/application/dictionary/defaultDictionary.hbs');
       const dictionaryPath = path.join(applicationPath, 'Dictionary');
       const filePath = path.join(dictionaryPath, 'DefaultDictionary.cs');
 
@@ -84,24 +84,17 @@ export class ApplicationService {
         };
       }
 
-      // Verificar se template existe
-      if (!fs.existsSync(templatePath)) {
-        return {
-          success: false,
-          message: 'Template DefaultDictionary não encontrado'
-        };
-      }
-
       // Verificar se diretório Dictionary existe
       if (!fs.existsSync(dictionaryPath)) {
         fs.mkdirSync(dictionaryPath, { recursive: true });
       }
 
-      // Ler template
-      const template = fs.readFileSync(templatePath, 'utf-8');
+      // Obter template via TemplateManager
+      const template = TemplateManager.getTemplate('application/dictionary/defaultDictionary.hbs');
+      const templateContent = template({});
 
       // Escrever arquivo
-      fs.writeFileSync(filePath, template);
+      fs.writeFileSync(filePath, templateContent);
 
       return {
         success: true,

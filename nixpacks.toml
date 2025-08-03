@@ -11,7 +11,9 @@ cmds = [
 
 [phases.build]
 cmds = [
-  "npm run build"
+  "npm run build",
+  "mkdir -p dist/templates",
+  "cp -r src/templates/* dist/templates/"
 ]
 
 [start]

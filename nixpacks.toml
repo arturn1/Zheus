@@ -5,10 +5,14 @@
 nixPkgs = ["nodejs_20", "dotnet-sdk_8"]
 
 [phases.install]
-cmd = "npm ci"
+cmds = [
+  "npm ci"
+]
 
 [phases.build]
-cmd = "npm run build"
+cmds = [
+  "npm run build"
+]
 
 [start]
 cmd = "npm start"

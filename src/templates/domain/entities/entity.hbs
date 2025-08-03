@@ -5,20 +5,21 @@ using System.Collections.Generic;
 
 namespace {{namespace}}
 {
-    public class {{name}} {{#baseSkip}}{{/baseSkip}}{{^baseSkip}}: BaseEntity {{/baseSkip}}
+    public class {{name}}Entity {{#baseSkip}}{{/baseSkip}}{{^baseSkip}}: BaseEntity {{/baseSkip}}
     {
-        public {{name}}() 
+        public {{name}}Entity() 
         {
 {{#initializeCollections}}
             {{{.}}}
 {{/initializeCollections}}
         }
         
-        public {{name}}({{{structureConstructor}}})
+        public {{name}}Entity({{{structureConstructor}}})
         {
 {{{structureEntityThis}}}
         }
         
 {{{structureEntityPublic}}}
     }
+}
 }

@@ -254,7 +254,7 @@ export class ProjectService {
     }
 
     // Criar estrutura de pastas
-    const folders = ['Entities', 'Commands', 'Commands/Contracts', 'Handlers', 'Repositories', 'Validation', 'Helpers'];
+    const folders = ['Entities', 'Commands', 'Commands/Contracts', 'Handlers', 'Handlers/Contracts','Repositories','Repositories/Contracts', 'Validation', 'Helpers'];
     for (const folder of folders) {
       fs.mkdirSync(path.join(domainPath, folder), { recursive: true });
     }

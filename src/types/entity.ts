@@ -8,7 +8,7 @@ export interface EntityProperty {
 
 export interface EntityDefinition {
   name: string;
-  inheritsFromBase: boolean;
+  inheritsFromBase?: boolean; // Optional, defaults to true
   namespace?: string;
   properties: EntityProperty[];
 }

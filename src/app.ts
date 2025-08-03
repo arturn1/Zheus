@@ -8,6 +8,8 @@ import dotNetRoutes from './routes/dotNetRoutes';
 import projectRoutes from './routes/projectRoutes';
 import entityRoutes from './routes/entityRoutes';
 import commandRoutes from './routes/commandRoutes';
+import handlerRoutes from './routes/handlerRoutes';
+import repositoryRoutes from './routes/repositoryRoutes';
 import { errorHandler } from './middleware/errorHandler';
 import { notFoundHandler } from './middleware/notFoundHandler';
 import healthRoutes from './routes/healthRoutes';
@@ -61,6 +63,12 @@ class App {
 
     // Command routes  
     this.app.use('/api/command', commandRoutes);
+
+    // Handler routes
+    this.app.use('/api/handler', handlerRoutes);
+
+    // Repository routes
+    this.app.use('/api/repository', repositoryRoutes);
 
     // Future API versioning
     // this.app.use('/api/v1', apiRoutes);

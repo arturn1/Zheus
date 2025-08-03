@@ -148,14 +148,23 @@ export class CommandService {
    * Prepara dados para o template de comando
    */
   private prepareCommandTemplateData(definition: EntityDefinition, includeId: boolean, commandType: 'Create' | 'Update' = 'Create') {
-    const properties = definition.properties.filter(p => !p.name.toLowerCase().includes('id') || includeId);
+    // Para comandos Create, incluir todas as propriedades (exceto Id se includeId for false)
+    const properties = definition.properties.filter(p => {
+      if (p.name.toLowerCase().includes('id') && !includeId) {
+        return false;
+      }
+      return true;
+    });
     
     const hasCollections = properties.some(p => p.isCollection);
     const hasEntities = properties.some(p => p.isNavigationProperty);
     
-    // Construir parâmetros do construtor
-    const constructorParams = properties
-      .filter(p => p.isRequired)
+    // Construir parâmetros do construtor - incluir propriedades obrigatórias ou todas se for Create
+    const constructorProps = commandType === 'Create' 
+      ? properties.filter(p => p.isRequired || !p.name.toLowerCase().includes('id'))
+      : properties.filter(p => p.isRequired);
+      
+    const constructorParams = constructorProps
       .map(p => {
         const csharpType = this.mapToCSharpType(p.type);
         const paramType = p.isCollection ? `${p.isCollection}<${csharpType}>` : csharpType;
@@ -164,8 +173,7 @@ export class CommandService {
       .join(', ');
 
     // Construir assignments no construtor
-    const constructorAssignments = properties
-      .filter(p => p.isRequired)
+    const constructorAssignments = constructorProps
       .map(p => `\n            this.${p.name} = ${this.toCamelCase(p.name)};`)
       .join('');
 

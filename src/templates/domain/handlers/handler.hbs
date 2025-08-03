@@ -1,0 +1,65 @@
+using Domain.Commands;
+using Domain.Commands.Contracts;
+using Domain.Entities;
+using Domain.Handlers.Contracts;
+using Domain.Helpers;
+using Domain.Repositories;
+using System.Net;
+{{#if hasCollections}}
+using System.Collections.Generic;
+{{/if}}
+
+namespace Domain.Handlers
+{
+    public class {{name}}Handler : {{#each command}}{{#if @first}}IHandler<{{commandName}}>{{else}}, IHandler<{{commandName}}>{{/if}}{{/each}}
+    {
+        {{#each repository}}
+        private readonly I{{name}}Repository _{{title}}Repository;
+        {{/each}}
+        private readonly IMapper _mapper;
+        
+        public {{name}}Handler({{#each repository}}I{{name}}Repository {{title}}Repository, {{/each}}IMapper mapper)
+        {
+            {{#each repository}}
+            _{{title}}Repository = {{title}}Repository;
+            {{/each}}
+            _mapper = mapper;
+        }
+
+{{#each command}}
+        public async Task<ICommandResult> Handle({{commandName}} command)
+        {
+            command.IsCommandValid();
+
+            if (!command.isValid)
+            {
+                return new CommandResult(command.Errors, HttpStatusCode.BadRequest);
+            }
+
+{{#if isUpdateCommand}}
+            {{../name}}Entity entity = await _{{../title}}Repository.GetByIdAsync(command.Id);
+
+            if (entity == null) return new CommandResult("Entity not found", HttpStatusCode.NotFound);
+
+            _mapper.Map(command, entity);
+
+            {{#each ../repository}}
+            await _{{title}}Repository.UpdateAsync(entity);
+            {{/each}}
+
+            return new CommandResult(entity, HttpStatusCode.OK);
+{{else}}
+            {{../name}}Entity entity = new ();
+            _mapper.Map(command, entity);
+
+            {{#each ../repository}}
+            await _{{title}}Repository.PostAsync(entity);
+            {{/each}}
+
+            return new CommandResult(entity, HttpStatusCode.Created);
+{{/if}}
+        }
+
+{{/each}}
+    }
+}

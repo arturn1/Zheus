@@ -33,11 +33,14 @@ export class EntityService {
    */
   private prepareTemplateData(definition: EntityDefinition): any {
     const hasCollections = definition.properties.some(p => p.isCollection);
+    
+    // Por padrão, herdar de BaseEntity (a menos que explicitamente definido como false)
+    const shouldInheritFromBase = definition.inheritsFromBase !== false;
 
     return {
       name: definition.name,
       namespace: definition.namespace || 'Domain.Entities',
-      baseSkip: !definition.inheritsFromBase,
+      baseSkip: !shouldInheritFromBase,
       hasCollections,
       structureConstructor: this.buildConstructorParameters(definition.properties),
       structureEntityThis: this.buildConstructorBody(definition.properties),

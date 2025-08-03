@@ -3,16 +3,25 @@ import { asyncHandler, ResponseUtils } from '../utils/responseUtils';
 import { ProjectService } from '../services/projectService';
 import { EntityService } from '../services/entityService';
 import { CommandService } from '../services/commandService';
+import { HandlerService } from '../services/handlerService';
+import { RepositoryService } from '../services/repositoryService';
+import { HelperService } from '../services/helperService';
 
 export class ProjectController {
   private projectService: ProjectService;
   private entityService: EntityService;
   private commandService: CommandService;
+  private handlerService: HandlerService;
+  private repositoryService: RepositoryService;
+  private helperService: HelperService;
 
   constructor() {
     this.projectService = new ProjectService();
     this.entityService = new EntityService();
     this.commandService = new CommandService();
+    this.handlerService = new HandlerService();
+    this.repositoryService = new RepositoryService();
+    this.helperService = new HelperService();
   }
 
   /**
@@ -103,10 +112,16 @@ export class ProjectController {
       
       const projectPath = projectResult.projectPath || `${process.cwd()}/${projectOptions.name}`;
 
-      // 2. Gerar entidades e comandos
-      await this.generateEntitiesAndCommands(projectPath, entities, results);
+      // 2. Gerar repositórios base
+      await this.generateBaseRepositories(projectPath, results);
 
-      // 3. Retornar resultado consolidado
+      // 3. Gerar helpers do domain
+      await this.generateDomainHelpers(projectPath, results);
+
+      // 4. Gerar entidades e todo o boilerplate CQRS
+      await this.generateEntitiesAndCompleteBoilerplate(projectPath, entities, results);
+
+      // 5. Retornar resultado consolidado
       const message = this.buildSuccessMessage(projectOptions.name, results.summary);
       return ResponseUtils.success(res, results, message, 201);
 
@@ -140,10 +155,14 @@ export class ProjectController {
       project: {} as any,
       entities: [] as any[],
       commands: [] as any[],
+      handlers: [] as any[],
+      repositories: [] as any[],
       summary: {
         projectCreated: false,
         entitiesGenerated: 0,
         commandsGenerated: 0,
+        handlersGenerated: 0,
+        repositoriesGenerated: 0,
         totalFiles: 0
       }
     };
@@ -158,30 +177,97 @@ export class ProjectController {
   }
 
   /**
-   * Gera todas as entidades e seus comandos
+   * Gera os repositórios base (IRepository e IRepositoryBase)
    */
-  private async generateEntitiesAndCommands(projectPath: string, entities: any[], results: any) {
-    console.log(`📦 Gerando ${entities.length} entidades...`);
+  private async generateBaseRepositories(projectPath: string, results: any) {
+    console.log('🗄️  Gerando repositórios base...');
     
-    for (const entityDef of entities) {
-      try {
-        // Gerar entidade
-        await this.generateSingleEntity(projectPath, entityDef, results);
-        
-        // Gerar comandos se solicitado
-        if (entityDef.generateCommands !== false && results.entities[results.entities.length - 1].success) {
-          await this.generateEntityCommands(projectPath, entityDef, results);
-        }
-
-      } catch (entityError: any) {
-        console.error(`❌ Erro ao gerar entidade ${entityDef.name}:`, entityError);
-        this.addEntityError(entityDef, entityError, results);
-      }
+    const domainPath = `${projectPath}/Domain`;
+    
+    try {
+      await this.repositoryService.generateBaseRepositories(domainPath);
+      
+      results.summary.totalFiles += 2; // IRepository.cs + IRepositoryBase.cs
+      console.log('✅ Repositórios base gerados com sucesso');
+    } catch (error: any) {
+      console.error('❌ Erro ao gerar repositórios base:', error.message);
+      // Não falha o processo inteiro, apenas registra o erro
     }
   }
 
   /**
-   * Gera uma única entidade
+   * Gera os helpers do domain (Mapper)
+   */
+  private async generateDomainHelpers(projectPath: string, results: any) {
+    console.log('🔧 Gerando helpers do domain...');
+    
+    const domainPath = `${projectPath}/Domain`;
+    
+    try {
+      await this.helperService.generateHelpers(domainPath);
+      
+      results.summary.totalFiles += 1; // Mapper.cs
+      console.log('✅ Helpers do domain gerados com sucesso');
+    } catch (error: any) {
+      console.error('❌ Erro ao gerar helpers do domain:', error.message);
+      // Não falha o processo inteiro, apenas registra o erro
+    }
+  }
+
+  /**
+   * Gera todas as entidades e todo o boilerplate CQRS associado
+   * Para cada entidade, cria:
+   * - Entity class (Domain layer)
+   * - Create/Update Commands (CQRS pattern)
+   * - Command Handlers (business logic)
+   * - Repository interface (data access)
+   */
+  private async generateEntitiesAndCompleteBoilerplate(projectPath: string, entities: any[], results: any) {
+    console.log(`🏗️  Gerando ${entities.length} entidades com boilerplate completo...`);
+    
+    for (const entityDef of entities) {
+      console.log(`\n📋 Processando entidade: ${entityDef.name}`);
+      
+      try {
+        // 1. Gerar entidade base (Domain/Entities)
+        console.log(`  └─ 🏷️  Criando ${entityDef.name}Entity...`);
+        await this.generateSingleEntity(projectPath, entityDef, results);
+        
+        // 2. Gerar todo o boilerplate CQRS se a entidade foi criada com sucesso
+        const entityCreatedSuccessfully = results.entities[results.entities.length - 1]?.success;
+        const shouldGenerateBoilerplate = entityDef.generateCommands !== false && entityCreatedSuccessfully;
+        
+        if (shouldGenerateBoilerplate) {
+          console.log(`  └─ ⚡ Gerando boilerplate CQRS para ${entityDef.name}...`);
+          
+          // Comandos CQRS (Create/Update)
+          await this.generateEntityCommands(projectPath, entityDef, results);
+          
+          // Handlers para processar comandos
+          await this.generateEntityHandlers(projectPath, entityDef, results);
+          
+          // Interface de repositório para acesso a dados
+          await this.generateEntityRepository(projectPath, entityDef, results);
+          
+          console.log(`  ✅ Boilerplate completo gerado para ${entityDef.name}`);
+        } else if (!entityCreatedSuccessfully) {
+          console.log(`  ❌ Pulando boilerplate para ${entityDef.name} - entidade não foi criada`);
+        } else {
+          console.log(`  ℹ️  Boilerplate desabilitado para ${entityDef.name}`);
+        }
+
+      } catch (entityError: any) {
+        console.error(`❌ Erro ao gerar ${entityDef.name} e seu boilerplate:`, entityError);
+        this.addEntityError(entityDef, entityError, results);
+      }
+    }
+    
+    console.log(`\n🎉 Processo concluído para ${entities.length} entidades`);
+  }
+
+  /**
+   * Gera uma única entidade no Domain layer
+   * Cria: {Entity}Entity.cs com propriedades e construtores
    */
   private async generateSingleEntity(projectPath: string, entityDef: any, results: any) {
     const entityRequest = {
@@ -205,7 +291,8 @@ export class ProjectController {
   }
 
   /**
-   * Gera comandos para uma entidade
+   * Gera comandos CQRS para uma entidade
+   * Cria: Create{Entity}Command.cs e Update{Entity}Command.cs
    */
   private async generateEntityCommands(projectPath: string, entityDef: any, results: any) {
     console.log(`⚡ Gerando comandos para entidade: ${entityDef.name}`);
@@ -233,6 +320,73 @@ export class ProjectController {
   }
 
   /**
+   * Gera handlers CQRS para processar comandos de uma entidade
+   * Cria: {Entity}Handler.cs com lógica de negócio para Create/Update
+   */
+  private async generateEntityHandlers(projectPath: string, entityDef: any, results: any) {
+    console.log(`🎯 Gerando handlers para entidade: ${entityDef.name}`);
+    
+    const handlerResult = await this.handlerService.generateHandlerFile(projectPath, entityDef);
+    
+    if (handlerResult.success) {
+      if (!results.handlers) results.handlers = [];
+      
+      results.handlers.push({
+        entityName: entityDef.name,
+        handlerType: 'CQRS Handler',
+        success: true,
+        files: handlerResult.filePaths || [],
+        message: handlerResult.message
+      });
+      results.summary.handlersGenerated = (results.summary.handlersGenerated || 0) + 1;
+      results.summary.totalFiles += handlerResult.filePaths?.length || 0;
+    } else {
+      if (!results.handlers) results.handlers = [];
+      
+      results.handlers.push({
+        entityName: entityDef.name,
+        handlerType: 'CQRS Handler',
+        success: false,
+        error: handlerResult.error || handlerResult.message
+      });
+    }
+  }
+
+  /**
+   * Gera interface de repositório para acesso a dados da entidade
+   * Cria: I{Entity}Repository.cs que herda de IRepositoryBase<T>
+   */
+  private async generateEntityRepository(projectPath: string, entityDef: any, results: any) {
+    console.log(`🗄️  Gerando repositório para entidade: ${entityDef.name}`);
+    
+    const domainPath = `${projectPath}/Domain`;
+    
+    try {
+      await this.repositoryService.generateEntityRepository(entityDef.name, domainPath);
+      
+      if (!results.repositories) results.repositories = [];
+      
+      results.repositories.push({
+        entityName: entityDef.name,
+        success: true,
+        fileName: `I${entityDef.name}Repository.cs`,
+        message: `Repositório gerado para ${entityDef.name}`
+      });
+      
+      results.summary.repositoriesGenerated = (results.summary.repositoriesGenerated || 0) + 1;
+      results.summary.totalFiles = (results.summary.totalFiles || 0) + 1;
+    } catch (error: any) {
+      if (!results.repositories) results.repositories = [];
+      
+      results.repositories.push({
+        entityName: entityDef.name,
+        success: false,
+        error: error?.message || 'Erro ao gerar repositório'
+      });
+    }
+  }
+
+  /**
    * Adiciona erro de entidade aos resultados
    */
   private addEntityError(entityDef: any, entityError: any, results: any) {
@@ -244,12 +398,15 @@ export class ProjectController {
   }
 
   /**
-   * Constrói mensagem de sucesso final
+   * Constrói mensagem de sucesso final detalhada
    */
   private buildSuccessMessage(projectName: string, summary: any): string {
-    return `🎉 Projeto '${projectName}' criado com sucesso! ` +
-      `Geradas ${summary.entitiesGenerated} entidades e ${summary.commandsGenerated} comandos ` +
-      `(${summary.totalFiles} arquivos no total)`;
+    return `🎉 Projeto Clean Architecture '${projectName}' criado com sucesso!\n` +
+      `📊 Geradas ${summary.entitiesGenerated} entidades com boilerplate completo:\n` +
+      `   ⚡ ${summary.commandsGenerated} comandos CQRS (Create/Update)\n` +
+      `   🎯 ${summary.handlersGenerated || 0} handlers de negócio\n` +
+      `   🗄️  ${summary.repositoriesGenerated || 0} interfaces de repositório\n` +
+      `📁 Total: ${summary.totalFiles} arquivos gerados`;
   }
 
   /**

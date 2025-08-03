@@ -1,6 +1,5 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import * as Handlebars from 'handlebars';
 
 export class HelperService {
   private templateDir: string;
@@ -58,13 +57,10 @@ export class HelperService {
   }
 
   /**
-   * Gera código C# do Mapper usando template
+   * Gera código C# do Mapper usando template estático
    */
   generateMapper(): string {
     const templatePath = path.join(this.templateDir, 'mapper.hbs');
-    const templateContent = fs.readFileSync(templatePath, 'utf-8');
-    const template = Handlebars.compile(templateContent);
-    
-    return template({});
+    return fs.readFileSync(templatePath, 'utf-8');
   }
 }

@@ -111,27 +111,27 @@ export class ProjectService {
     }
   }
 
-  /**
-   * Cria os arquivos base do Domain
+      /**
+   * Constrói o comando de criação do projeto
    */
-  private async createBaseEntityFiles(domainPath: string): Promise<void> {
-    // Carregar templates
-    const validatableTemplate = fs.readFileSync(path.join(__dirname, '../templates/domain/validation/validatable.hbs'), 'utf-8');
-    const validatableTypesTemplate = fs.readFileSync(path.join(__dirname, '../templates/domain/validation/validatableTypes.hbs'), 'utf-8');
-    const baseEntityTemplate = fs.readFileSync(path.join(__dirname, '../templates/domain/entities/baseEntity.hbs'), 'utf-8');
-    const iCommandResultTemplate = fs.readFileSync(path.join(__dirname, '../templates/domain/commands/iCommandResult.hbs'), 'utf-8');
-    const commandResultTemplate = fs.readFileSync(path.join(__dirname, '../templates/domain/commands/commandResult.hbs'), 'utf-8');
-    const iCommandTemplate = fs.readFileSync(path.join(__dirname, '../templates/domain/commands/iCommand.hbs'), 'utf-8');
-    const iRepositoryBaseTemplate = fs.readFileSync(path.join(__dirname, '../templates/domain/repositories/contracts/iRepositoryBase.hbs'), 'utf-8');
+  private buildCreateCommand(options: ProjectCreationOptions, outputPath: string): string {
+    let command = `dotnet new ${options.template || 'console'}`;
     
-    // Criar arquivos
-    fs.writeFileSync(path.join(domainPath, 'Validation', 'Validatable.cs'), validatableTemplate);
-    fs.writeFileSync(path.join(domainPath, 'Validation', 'ValidatableTypes.cs'), validatableTypesTemplate);
-    fs.writeFileSync(path.join(domainPath, 'Entities', 'BaseEntity.cs'), baseEntityTemplate);
-    fs.writeFileSync(path.join(domainPath, 'Commands', 'Contracts', 'ICommandResult.cs'), iCommandResultTemplate);
-    fs.writeFileSync(path.join(domainPath, 'Commands', 'Contracts', 'ICommand.cs'), iCommandTemplate);
-    fs.writeFileSync(path.join(domainPath, 'Commands', 'CommandResult.cs'), commandResultTemplate);
-    fs.writeFileSync(path.join(domainPath, 'Repositories', 'Contracts', 'IRepositoryBase.cs'), iRepositoryBaseTemplate);
+    command += ` --name "${options.name}"`;
+    
+    if (options.framework) {
+      command += ` --framework ${options.framework}`;
+    }
+    
+    if (options.language && options.language !== 'C#') {
+      command += ` --language ${options.language}`;
+    }
+    
+    if (options.force) {
+      command += ` --force`;
+    }
+    
+    return command;
   }
 
   /**
@@ -187,29 +187,6 @@ export class ProjectService {
   private isValidProjectName(name: string): boolean {
     const regex = /^[a-zA-Z][a-zA-Z0-9_]*$/;
     return regex.test(name) && name.length <= 50;
-  }
-
-  /**
-   * Constrói o comando de criação do projeto
-   */
-  private buildCreateCommand(options: ProjectCreationOptions, outputPath: string): string {
-    let command = `dotnet new ${options.template || 'console'}`;
-    
-    command += ` --name "${options.name}"`;
-    
-    if (options.framework) {
-      command += ` --framework ${options.framework}`;
-    }
-    
-    if (options.language && options.language !== 'C#') {
-      command += ` --language ${options.language}`;
-    }
-    
-    if (options.force) {
-      command += ` --force`;
-    }
-    
-    return command;
   }
 
   /**
@@ -333,6 +310,29 @@ export class ProjectService {
     await this.createBaseEntityFiles(domainPath);
   }
 
+    /**
+   * Cria os arquivos base do Domain
+   */
+  private async createBaseEntityFiles(domainPath: string): Promise<void> {
+    // Carregar templates
+    const validatableTemplate = fs.readFileSync(path.join(__dirname, '../templates/domain/validation/validatable.hbs'), 'utf-8');
+    const validatableTypesTemplate = fs.readFileSync(path.join(__dirname, '../templates/domain/validation/validatableTypes.hbs'), 'utf-8');
+    const baseEntityTemplate = fs.readFileSync(path.join(__dirname, '../templates/domain/entities/baseEntity.hbs'), 'utf-8');
+    const iCommandResultTemplate = fs.readFileSync(path.join(__dirname, '../templates/domain/commands/iCommandResult.hbs'), 'utf-8');
+    const commandResultTemplate = fs.readFileSync(path.join(__dirname, '../templates/domain/commands/commandResult.hbs'), 'utf-8');
+    const iCommandTemplate = fs.readFileSync(path.join(__dirname, '../templates/domain/commands/iCommand.hbs'), 'utf-8');
+    const iRepositoryBaseTemplate = fs.readFileSync(path.join(__dirname, '../templates/domain/repositories/contracts/iRepositoryBase.hbs'), 'utf-8');
+    
+    // Criar arquivos
+    fs.writeFileSync(path.join(domainPath, 'Validation', 'Validatable.cs'), validatableTemplate);
+    fs.writeFileSync(path.join(domainPath, 'Validation', 'ValidatableTypes.cs'), validatableTypesTemplate);
+    fs.writeFileSync(path.join(domainPath, 'Entities', 'BaseEntity.cs'), baseEntityTemplate);
+    fs.writeFileSync(path.join(domainPath, 'Commands', 'Contracts', 'ICommandResult.cs'), iCommandResultTemplate);
+    fs.writeFileSync(path.join(domainPath, 'Commands', 'Contracts', 'ICommand.cs'), iCommandTemplate);
+    fs.writeFileSync(path.join(domainPath, 'Commands', 'CommandResult.cs'), commandResultTemplate);
+    fs.writeFileSync(path.join(domainPath, 'Repositories', 'Contracts', 'IRepositoryBase.cs'), iRepositoryBaseTemplate);
+  }
+
   /**
    * Cria o projeto Application (Class Library)
    */
@@ -395,12 +395,6 @@ export class ProjectService {
   private async createIoCProject(projectName: string, rootPath: string, framework: string): Promise<void> {
     const iocPath = path.join(rootPath, 'IoC');
     await execAsync(`dotnet new classlib --name "IoC" --framework ${framework}`, { cwd: rootPath });
-
-    // Remover Class1.cs criado automaticamente pelo dotnet new classlib
-    const class1Path = path.join(iocPath, 'Class1.cs');
-    if (fs.existsSync(class1Path)) {
-      fs.unlinkSync(class1Path);
-    }
 
     // Criar NativeInjectorBootStrapper
     const iocResult = await this.iocService.createNativeInjectorBootStrapper(rootPath);

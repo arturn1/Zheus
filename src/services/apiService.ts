@@ -85,7 +85,7 @@ export class ApiService {
   /**
    * Cria o arquivo DependencyInjectionConfig.cs
    */
-  async createDependencyInjectionConfig(configurationsPath: string): Promise<ApiConfigResult> {
+  private async createDependencyInjectionConfig(configurationsPath: string): Promise<ApiConfigResult> {
     try {
       const templatePath = path.join(__dirname, '../templates/api/configurations/dependencyInjectionConfig.hbs');
       const filePath = path.join(configurationsPath, 'DependencyInjectionConfig.cs');
@@ -122,7 +122,7 @@ export class ApiService {
   /**
    * Cria o arquivo EnvironmentConfig.cs
    */
-  async createEnvironmentConfig(configurationsPath: string): Promise<ApiConfigResult> {
+  private async createEnvironmentConfig(configurationsPath: string): Promise<ApiConfigResult> {
     try {
       const templatePath = path.join(__dirname, '../templates/api/configurations/environmentConfig.hbs');
       const filePath = path.join(configurationsPath, 'EnvironmentConfig.cs');
@@ -159,7 +159,7 @@ export class ApiService {
   /**
    * Cria o arquivo SwaggerConfig.cs
    */
-  async createSwaggerConfig(configurationsPath: string, swaggerOptions?: {
+  private async createSwaggerConfig(configurationsPath: string, swaggerOptions?: {
     title?: string;
     version?: string;
     description?: string;
@@ -271,7 +271,7 @@ export class ApiService {
   /**
    * Cria o arquivo BaseController.cs na pasta Contract
    */
-  async createBaseController(projectPath: string): Promise<ApiConfigResult> {
+  private async createBaseController(projectPath: string): Promise<ApiConfigResult> {
     try {
       const templatePath = path.join(__dirname, '../templates/api/controllers/contract/baseController.hbs');
       const apiPath = path.join(projectPath, 'API');
@@ -324,7 +324,7 @@ export class ApiService {
   /**
    * Cria os middlewares da API (CancellationToken e ErrorHandling)
    */
-  async createApiMiddlewares(projectPath: string): Promise<ApiConfigResult> {
+  private async createApiMiddlewares(projectPath: string): Promise<ApiConfigResult> {
     try {
       const apiPath = path.join(projectPath, 'API');
       const middlewarePath = path.join(apiPath, 'Middleware');
@@ -374,7 +374,7 @@ export class ApiService {
   /**
    * Cria o arquivo CancellationTokenMiddleware.cs
    */
-  async createCancellationTokenMiddleware(middlewarePath: string): Promise<ApiConfigResult> {
+  private async createCancellationTokenMiddleware(middlewarePath: string): Promise<ApiConfigResult> {
     try {
       const templatePath = path.join(__dirname, '../templates/api/middleware/cancellationTokenMiddleware.hbs');
       const filePath = path.join(middlewarePath, 'CancellationTokenMiddleware.cs');
@@ -420,7 +420,7 @@ export class ApiService {
   /**
    * Cria o arquivo ErrorHandlingMiddleware.cs
    */
-  async createErrorHandlingMiddleware(middlewarePath: string): Promise<ApiConfigResult> {
+  private async createErrorHandlingMiddleware(middlewarePath: string): Promise<ApiConfigResult> {
     try {
       const templatePath = path.join(__dirname, '../templates/api/middleware/errorHandlingMiddleware.hbs');
       const filePath = path.join(middlewarePath, 'ErrorHandlingMiddleware.cs');
@@ -460,78 +460,6 @@ export class ApiService {
         success: false,
         message: `Erro ao criar ErrorHandlingMiddleware: ${error.message}`
       };
-    }
-  }
-
-  /**
-   * Cria controllers para múltiplas entidades
-   */
-  async createMultipleEntityControllers(projectPath: string, entities: { name: string; properties?: any[] }[]): Promise<ApiConfigResult> {
-    try {
-      const createdFiles: string[] = [];
-      
-      for (const entity of entities) {
-        const result = await this.createEntityController(projectPath, entity.name, entity.properties);
-        if (result.success && result.filePath) {
-          createdFiles.push(result.filePath);
-        }
-      }
-
-      return {
-        success: true,
-        message: `${createdFiles.length} controllers criados com sucesso`,
-        files: createdFiles
-      };
-
-    } catch (error: any) {
-      console.error('❌ Erro ao criar múltiplos controllers:', error);
-      return {
-        success: false,
-        message: `Erro ao criar controllers: ${error.message}`
-      };
-    }
-  }
-
-  /**
-   * Verifica se as configurações da API existem
-   */
-  hasApiConfigurations(projectPath: string): boolean {
-    try {
-      const configurationsPath = path.join(projectPath, 'API', 'Configurations');
-      
-      const requiredFiles = [
-        'DependencyInjectionConfig.cs',
-        'EnvironmentConfig.cs',
-        'SwaggerConfig.cs'
-      ];
-
-      return requiredFiles.every(file => 
-        fs.existsSync(path.join(configurationsPath, file))
-      );
-
-    } catch (error) {
-      return false;
-    }
-  }
-
-  /**
-   * Lista todos os controllers existentes
-   */
-  getExistingControllers(projectPath: string): string[] {
-    try {
-      const controllersPath = path.join(projectPath, 'API', 'Controllers');
-      
-      if (!fs.existsSync(controllersPath)) {
-        return [];
-      }
-
-      return fs.readdirSync(controllersPath)
-        .filter(file => file.endsWith('Controller.cs'))
-        .map(file => file.replace('Controller.cs', ''));
-
-    } catch (error) {
-      console.error('❌ Erro ao listar controllers:', error);
-      return [];
     }
   }
 }

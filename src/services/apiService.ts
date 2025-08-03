@@ -87,22 +87,11 @@ export class ApiService {
    */
   private async createDependencyInjectionConfig(configurationsPath: string): Promise<ApiConfigResult> {
     try {
-      const templatePath = path.join(__dirname, '../templates/api/configurations/dependencyInjectionConfig.hbs');
+      const template = TemplateManager.getTemplate('api/configurations/dependencyInjectionConfig.hbs');
       const filePath = path.join(configurationsPath, 'DependencyInjectionConfig.cs');
 
-      // Verificar se template existe
-      if (!fs.existsSync(templatePath)) {
-        return {
-          success: false,
-          message: 'Template DependencyInjectionConfig não encontrado'
-        };
-      }
-
-      // Ler template
-      const template = fs.readFileSync(templatePath, 'utf-8');
-
       // Escrever arquivo
-      fs.writeFileSync(filePath, template);
+      fs.writeFileSync(filePath, template({}));
 
       return {
         success: true,
@@ -124,22 +113,11 @@ export class ApiService {
    */
   private async createEnvironmentConfig(configurationsPath: string): Promise<ApiConfigResult> {
     try {
-      const templatePath = path.join(__dirname, '../templates/api/configurations/environmentConfig.hbs');
+      const template = TemplateManager.getTemplate('api/configurations/environmentConfig.hbs');
       const filePath = path.join(configurationsPath, 'EnvironmentConfig.cs');
 
-      // Verificar se template existe
-      if (!fs.existsSync(templatePath)) {
-        return {
-          success: false,
-          message: 'Template EnvironmentConfig não encontrado'
-        };
-      }
-
-      // Ler template
-      const template = fs.readFileSync(templatePath, 'utf-8');
-
       // Escrever arquivo
-      fs.writeFileSync(filePath, template);
+      fs.writeFileSync(filePath, template({}));
 
       return {
         success: true,
@@ -165,25 +143,14 @@ export class ApiService {
     description?: string;
   }): Promise<ApiConfigResult> {
     try {
-      const templatePath = path.join(__dirname, '../templates/api/configurations/swaggerConfig.hbs');
+      const template = TemplateManager.getTemplate('api/configurations/swaggerConfig.hbs');
       const filePath = path.join(configurationsPath, 'SwaggerConfig.cs');
-
-      // Verificar se template existe
-      if (!fs.existsSync(templatePath)) {
-        return {
-          success: false,
-          message: 'Template SwaggerConfig não encontrado'
-        };
-      }
-
-      // Ler template
-      let template = fs.readFileSync(templatePath, 'utf-8');
 
       // Se tiver opções específicas do Swagger, podemos personalizar aqui no futuro
       // Por enquanto, usar template padrão
 
       // Escrever arquivo
-      fs.writeFileSync(filePath, template);
+      fs.writeFileSync(filePath, template({}));
 
       return {
         success: true,
@@ -205,18 +172,9 @@ export class ApiService {
    */
   async createEntityController(projectPath: string, entityName: string, entityProperties?: any[]): Promise<ApiConfigResult> {
     try {
-      const templatePath = path.join(__dirname, '../templates/api/controllers/entityController.hbs');
       const apiPath = path.join(projectPath, 'API');
       const controllersPath = path.join(apiPath, 'Controllers');
       const filePath = path.join(controllersPath, `${entityName}Controller.cs`);
-
-      // Verificar se template existe
-      if (!fs.existsSync(templatePath)) {
-        return {
-          success: false,
-          message: 'Template entityController não encontrado'
-        };
-      }
 
       // Verificar se diretório Controllers existe
       if (!fs.existsSync(controllersPath)) {
@@ -227,7 +185,7 @@ export class ApiService {
       await this.createBaseController(projectPath);
 
       // Obter template via TemplateManager
-      const template = TemplateManager.getTemplate('api/controller.hbs');
+      const template = TemplateManager.getTemplate('api/controllers/entityController.hbs');
 
       // Preparar dados para o template
       const templateData = {
@@ -272,7 +230,6 @@ export class ApiService {
    */
   private async createBaseController(projectPath: string): Promise<ApiConfigResult> {
     try {
-      const templatePath = path.join(__dirname, '../templates/api/controllers/contract/baseController.hbs');
       const apiPath = path.join(projectPath, 'API');
       const contractPath = path.join(apiPath, 'Controllers', 'Contract');
       const filePath = path.join(contractPath, 'BaseController.cs');
@@ -286,24 +243,16 @@ export class ApiService {
         };
       }
 
-      // Verificar se template existe
-      if (!fs.existsSync(templatePath)) {
-        return {
-          success: false,
-          message: 'Template BaseController não encontrado'
-        };
-      }
-
       // Verificar se diretório Contract existe
       if (!fs.existsSync(contractPath)) {
         fs.mkdirSync(contractPath, { recursive: true });
       }
 
-      // Ler template
-      const template = fs.readFileSync(templatePath, 'utf-8');
+      // Obter template
+      const template = TemplateManager.getTemplate('api/controllers/contract/baseController.hbs');
 
       // Escrever arquivo
-      fs.writeFileSync(filePath, template);
+      fs.writeFileSync(filePath, template({}));
 
       return {
         success: true,
@@ -375,7 +324,6 @@ export class ApiService {
    */
   private async createCancellationTokenMiddleware(middlewarePath: string): Promise<ApiConfigResult> {
     try {
-      const templatePath = path.join(__dirname, '../templates/api/middleware/cancellationTokenMiddleware.hbs');
       const filePath = path.join(middlewarePath, 'CancellationTokenMiddleware.cs');
 
       // Verificar se já existe
@@ -387,19 +335,11 @@ export class ApiService {
         };
       }
 
-      // Verificar se template existe
-      if (!fs.existsSync(templatePath)) {
-        return {
-          success: false,
-          message: 'Template CancellationTokenMiddleware não encontrado'
-        };
-      }
-
-      // Ler template
-      const template = fs.readFileSync(templatePath, 'utf-8');
+      // Obter template
+      const template = TemplateManager.getTemplate('api/middleware/cancellationTokenMiddleware.hbs');
 
       // Escrever arquivo
-      fs.writeFileSync(filePath, template);
+      fs.writeFileSync(filePath, template({}));
 
       return {
         success: true,
@@ -421,7 +361,6 @@ export class ApiService {
    */
   private async createErrorHandlingMiddleware(middlewarePath: string): Promise<ApiConfigResult> {
     try {
-      const templatePath = path.join(__dirname, '../templates/api/middleware/errorHandlingMiddleware.hbs');
       const filePath = path.join(middlewarePath, 'ErrorHandlingMiddleware.cs');
 
       // Verificar se já existe
@@ -433,19 +372,11 @@ export class ApiService {
         };
       }
 
-      // Verificar se template existe
-      if (!fs.existsSync(templatePath)) {
-        return {
-          success: false,
-          message: 'Template ErrorHandlingMiddleware não encontrado'
-        };
-      }
-
-      // Ler template
-      const template = fs.readFileSync(templatePath, 'utf-8');
+      // Obter template
+      const template = TemplateManager.getTemplate('api/middleware/errorHandlingMiddleware.hbs');
 
       // Escrever arquivo
-      fs.writeFileSync(filePath, template);
+      fs.writeFileSync(filePath, template({}));
 
       return {
         success: true,

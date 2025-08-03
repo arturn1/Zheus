@@ -233,7 +233,6 @@ export class ApplicationService {
    */
   async createHttpClientInterface(applicationPath: string): Promise<ApplicationResult> {
     try {
-      const templatePath = path.join(__dirname, '../templates/application/interfaces/iHttpClientService.hbs');
       const interfacesPath = path.join(applicationPath, 'Interfaces');
       const filePath = path.join(interfacesPath, 'IHttpClientService.cs');
 
@@ -246,24 +245,17 @@ export class ApplicationService {
         };
       }
 
-      // Verificar se template existe
-      if (!fs.existsSync(templatePath)) {
-        return {
-          success: false,
-          message: 'Template IHttpClientService não encontrado'
-        };
-      }
-
       // Verificar se diretório Interfaces existe
       if (!fs.existsSync(interfacesPath)) {
         fs.mkdirSync(interfacesPath, { recursive: true });
       }
 
-      // Ler template
-      const template = fs.readFileSync(templatePath, 'utf-8');
+      // Obter template via TemplateManager
+      const template = TemplateManager.getTemplate('application/interfaces/iHttpClientService.hbs');
+      const templateContent = template({});
 
       // Escrever arquivo
-      fs.writeFileSync(filePath, template);
+      fs.writeFileSync(filePath, templateContent);
 
       return {
         success: true,
@@ -285,7 +277,6 @@ export class ApplicationService {
    */
   async createHttpClientService(applicationPath: string): Promise<ApplicationResult> {
     try {
-      const templatePath = path.join(__dirname, '../templates/application/services/httpClientService.hbs');
       const servicesPath = path.join(applicationPath, 'Services');
       const filePath = path.join(servicesPath, 'HttpClientService.cs');
 
@@ -298,24 +289,17 @@ export class ApplicationService {
         };
       }
 
-      // Verificar se template existe
-      if (!fs.existsSync(templatePath)) {
-        return {
-          success: false,
-          message: 'Template HttpClientService não encontrado'
-        };
-      }
-
       // Verificar se diretório Services existe
       if (!fs.existsSync(servicesPath)) {
         fs.mkdirSync(servicesPath, { recursive: true });
       }
 
-      // Ler template
-      const template = fs.readFileSync(templatePath, 'utf-8');
+      // Obter template via TemplateManager
+      const template = TemplateManager.getTemplate('application/services/httpClientService.hbs');
+      const templateContent = template({});
 
       // Escrever arquivo
-      fs.writeFileSync(filePath, template);
+      fs.writeFileSync(filePath, templateContent);
 
       return {
         success: true,

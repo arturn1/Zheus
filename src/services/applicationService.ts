@@ -157,7 +157,6 @@ export class ApplicationService {
    */
   async createApiResponseModel(responsePath: string): Promise<ApplicationResult> {
     try {
-      const templatePath = path.join(__dirname, '../templates/application/dtos/response/apiResponseModel.hbs');
       const filePath = path.join(responsePath, 'ApiResponseModel.cs');
 
       // Verificar se já existe
@@ -169,19 +168,12 @@ export class ApplicationService {
         };
       }
 
-      // Verificar se template existe
-      if (!fs.existsSync(templatePath)) {
-        return {
-          success: false,
-          message: 'Template ApiResponseModel não encontrado'
-        };
-      }
-
-      // Ler template
-      const template = fs.readFileSync(templatePath, 'utf-8');
+      // Obter template via TemplateManager
+      const template = TemplateManager.getTemplate('application/dtos/response/apiResponseModel.hbs');
+      const templateContent = template({});
 
       // Escrever arquivo
-      fs.writeFileSync(filePath, template);
+      fs.writeFileSync(filePath, templateContent);
 
       return {
         success: true,
@@ -203,7 +195,6 @@ export class ApplicationService {
    */
   async createHttpClientResponse(responsePath: string): Promise<ApplicationResult> {
     try {
-      const templatePath = path.join(__dirname, '../templates/application/dtos/response/httpClientResponse.hbs');
       const filePath = path.join(responsePath, 'HttpClientResponse.cs');
 
       // Verificar se já existe
@@ -215,19 +206,12 @@ export class ApplicationService {
         };
       }
 
-      // Verificar se template existe
-      if (!fs.existsSync(templatePath)) {
-        return {
-          success: false,
-          message: 'Template HttpClientResponse não encontrado'
-        };
-      }
-
-      // Ler template
-      const template = fs.readFileSync(templatePath, 'utf-8');
+      // Obter template via TemplateManager
+      const template = TemplateManager.getTemplate('application/dtos/response/httpClientResponse.hbs');
+      const templateContent = template({});
 
       // Escrever arquivo
-      fs.writeFileSync(filePath, template);
+      fs.writeFileSync(filePath, templateContent);
 
       return {
         success: true,

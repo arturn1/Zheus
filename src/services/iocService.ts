@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { TemplateManager } from '../utils/TemplateManager';
 
 export interface IoCRegistration {
   name: string;
@@ -37,11 +38,12 @@ export class IoCService {
         fs.mkdirSync(iocPath, { recursive: true });
       }
 
-      // Ler template
-      const template = fs.readFileSync(templatePath, 'utf-8');
+      // Obter template via TemplateManager
+      const template = TemplateManager.getTemplate('ioc/nativeInjectorBootStrapper.hbs');
+      const templateContent = template({});
 
       // Escrever arquivo
-      fs.writeFileSync(filePath, template);
+      fs.writeFileSync(filePath, templateContent);
 
       return {
         success: true,

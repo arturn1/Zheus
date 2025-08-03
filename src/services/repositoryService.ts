@@ -1,12 +1,11 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import * as Handlebars from 'handlebars';
+import { TemplateManager } from '../utils/TemplateManager';
 
 export class RepositoryService {
-  private templateDir: string;
 
   constructor() {
-    this.templateDir = path.join(__dirname, '../templates/domain/repositories');
+    // Templates gerenciados via TemplateManager
   }
 
   /**
@@ -47,9 +46,7 @@ export class RepositoryService {
       }
 
       // Carregar template
-      const templatePath = path.join(this.templateDir, 'entityRepository.hbs');
-      const templateContent = fs.readFileSync(templatePath, 'utf-8');
-      const template = Handlebars.compile(templateContent);
+      const template = TemplateManager.getTemplate('domain/repositories/entityRepository.hbs');
 
       // Preparar dados para o template
       const templateData = {
@@ -76,8 +73,8 @@ export class RepositoryService {
    * Gera o arquivo IRepository.cs na pasta Contracts
    */
   private async generateRepositoryContract(contractsPath: string): Promise<void> {
-    const templatePath = path.join(this.templateDir, 'contracts', 'iRepository.hbs');
-    const templateContent = fs.readFileSync(templatePath, 'utf-8');
+    const template = TemplateManager.getTemplate('domain/repositories/contracts/iRepository.hbs');
+    const templateContent = template({});
     
     const filePath = path.join(contractsPath, 'IRepository.cs');
     fs.writeFileSync(filePath, templateContent);
@@ -89,8 +86,8 @@ export class RepositoryService {
    * Gera o arquivo IRepositoryBase.cs na pasta Contracts
    */
   private async generateRepositoryBaseContract(contractsPath: string): Promise<void> {
-    const templatePath = path.join(this.templateDir, 'contracts', 'iRepositoryBase.hbs');
-    const templateContent = fs.readFileSync(templatePath, 'utf-8');
+    const template = TemplateManager.getTemplate('domain/repositories/contracts/iRepositoryBase.hbs');
+    const templateContent = template({});
     
     const filePath = path.join(contractsPath, 'IRepositoryBase.cs');
     fs.writeFileSync(filePath, templateContent);

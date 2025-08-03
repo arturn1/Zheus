@@ -2,48 +2,29 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as Handlebars from 'handlebars';
 import { EntityDefinition, EntityProperty } from '../types/entity';
+import { TemplateManager } from '../utils/TemplateManager';
 
 export class CommandService {
-  private commandTemplate!: HandlebarsTemplateDelegate;
-  private updateCommandTemplate!: HandlebarsTemplateDelegate;
-
   constructor() {
-    this.loadCommandTemplate();
-    this.loadUpdateCommandTemplate();
-  }
-
-  /**
-   * Carrega o template de comando
-   */
-  private loadCommandTemplate(): void {
-    const templatePath = path.join(__dirname, '../templates/domain/commands/command.hbs');
-    const templateContent = fs.readFileSync(templatePath, 'utf-8');
-    this.commandTemplate = Handlebars.compile(templateContent);
-  }
-
-  /**
-   * Carrega o template de comando de atualização
-   */
-  private loadUpdateCommandTemplate(): void {
-    const templatePath = path.join(__dirname, '../templates/domain/commands/updateCommand.hbs');
-    const templateContent = fs.readFileSync(templatePath, 'utf-8');
-    this.updateCommandTemplate = Handlebars.compile(templateContent);
+    // Sem carregamento de templates no constructor
   }
 
   /**
    * Gera código C# do comando baseado na definição da entidade
    */
   generateCommand(definition: EntityDefinition, includeId: boolean = true): string {
+    const template = TemplateManager.getTemplate('domain/commands/command.hbs');
     const commandData = this.prepareCommandTemplateData(definition, includeId, 'Create');
-    return this.commandTemplate(commandData);
+    return template(commandData);
   }
 
   /**
    * Gera código C# do comando de atualização baseado na definição da entidade
    */
   generateUpdateCommand(definition: EntityDefinition): string {
+    const template = TemplateManager.getTemplate('domain/commands/updateCommand.hbs');
     const commandData = this.prepareUpdateCommandTemplateData(definition);
-    return this.updateCommandTemplate(commandData);
+    return template(commandData);
   }
 
   /**

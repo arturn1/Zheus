@@ -3,6 +3,7 @@ import { promisify } from 'util';
 import * as path from 'path';
 import * as fs from 'fs';
 import { ProjectCreationOptions, ProjectCreationResult } from '../types/project';
+import { TemplateManager } from '../utils/TemplateManager';
 import { DotNetService } from './dotNetService';
 import { IoCService } from './iocService';
 import { ApplicationService } from './applicationService';
@@ -314,23 +315,23 @@ export class ProjectService {
    * Cria os arquivos base do Domain
    */
   private async createBaseEntityFiles(domainPath: string): Promise<void> {
-    // Carregar templates
-    const validatableTemplate = fs.readFileSync(path.join(__dirname, '../templates/domain/validation/validatable.hbs'), 'utf-8');
-    const validatableTypesTemplate = fs.readFileSync(path.join(__dirname, '../templates/domain/validation/validatableTypes.hbs'), 'utf-8');
-    const baseEntityTemplate = fs.readFileSync(path.join(__dirname, '../templates/domain/entities/baseEntity.hbs'), 'utf-8');
-    const iCommandResultTemplate = fs.readFileSync(path.join(__dirname, '../templates/domain/commands/iCommandResult.hbs'), 'utf-8');
-    const commandResultTemplate = fs.readFileSync(path.join(__dirname, '../templates/domain/commands/commandResult.hbs'), 'utf-8');
-    const iCommandTemplate = fs.readFileSync(path.join(__dirname, '../templates/domain/commands/iCommand.hbs'), 'utf-8');
-    const iRepositoryBaseTemplate = fs.readFileSync(path.join(__dirname, '../templates/domain/repositories/contracts/iRepositoryBase.hbs'), 'utf-8');
+    // Obter templates via TemplateManager
+    const validatableTemplate = TemplateManager.getTemplate('domain/validation/validatable.hbs');
+    const validatableTypesTemplate = TemplateManager.getTemplate('domain/validation/validatableTypes.hbs');
+    const baseEntityTemplate = TemplateManager.getTemplate('domain/entities/baseEntity.hbs');
+    const iCommandResultTemplate = TemplateManager.getTemplate('domain/commands/iCommandResult.hbs');
+    const commandResultTemplate = TemplateManager.getTemplate('domain/commands/commandResult.hbs');
+    const iCommandTemplate = TemplateManager.getTemplate('domain/commands/iCommand.hbs');
+    const iRepositoryBaseTemplate = TemplateManager.getTemplate('domain/repositories/contracts/iRepositoryBase.hbs');
     
     // Criar arquivos
-    fs.writeFileSync(path.join(domainPath, 'Validation', 'Validatable.cs'), validatableTemplate);
-    fs.writeFileSync(path.join(domainPath, 'Validation', 'ValidatableTypes.cs'), validatableTypesTemplate);
-    fs.writeFileSync(path.join(domainPath, 'Entities', 'BaseEntity.cs'), baseEntityTemplate);
-    fs.writeFileSync(path.join(domainPath, 'Commands', 'Contracts', 'ICommandResult.cs'), iCommandResultTemplate);
-    fs.writeFileSync(path.join(domainPath, 'Commands', 'Contracts', 'ICommand.cs'), iCommandTemplate);
-    fs.writeFileSync(path.join(domainPath, 'Commands', 'CommandResult.cs'), commandResultTemplate);
-    fs.writeFileSync(path.join(domainPath, 'Repositories', 'Contracts', 'IRepositoryBase.cs'), iRepositoryBaseTemplate);
+    fs.writeFileSync(path.join(domainPath, 'Validation', 'Validatable.cs'), validatableTemplate({}));
+    fs.writeFileSync(path.join(domainPath, 'Validation', 'ValidatableTypes.cs'), validatableTypesTemplate({}));
+    fs.writeFileSync(path.join(domainPath, 'Entities', 'BaseEntity.cs'), baseEntityTemplate({}));
+    fs.writeFileSync(path.join(domainPath, 'Commands', 'Contracts', 'ICommandResult.cs'), iCommandResultTemplate({}));
+    fs.writeFileSync(path.join(domainPath, 'Commands', 'Contracts', 'ICommand.cs'), iCommandTemplate({}));
+    fs.writeFileSync(path.join(domainPath, 'Commands', 'CommandResult.cs'), commandResultTemplate({}));
+    fs.writeFileSync(path.join(domainPath, 'Repositories', 'Contracts', 'IRepositoryBase.cs'), iRepositoryBaseTemplate({}));
   }
 
   /**

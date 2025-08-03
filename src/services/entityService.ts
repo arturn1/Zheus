@@ -2,33 +2,21 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as Handlebars from 'handlebars';
 import { EntityDefinition, EntityGenerationRequest, EntityGenerationResult, EntityProperty } from '../types/entity';
+import { TemplateManager } from '../utils/TemplateManager';
 
 export class EntityService {
-  private template?: HandlebarsTemplateDelegate;
-
   constructor() {
-    // Template será carregado apenas quando necessário (lazy loading)
+    // Sem carregamento de templates no constructor
     this.registerHelpers();
-  }
-
-  /**
-   * Carrega o template externo (lazy loading)
-   */
-  private loadTemplate(): void {
-    if (this.template) return; // Já foi carregado
-    
-    const templatePath = path.join(__dirname, '../templates/domain/entities/entity.hbs');
-    const templateContent = fs.readFileSync(templatePath, 'utf-8');
-    this.template = Handlebars.compile(templateContent);
   }
 
   /**
    * Gera código C# da entidade baseado na definição
    */
   private generateEntityCode(definition: EntityDefinition): string {
-    this.loadTemplate(); // Carrega template se necessário
+    const template = TemplateManager.getTemplate('domain/entities/entity.hbs');
     const templateData = this.prepareTemplateData(definition);
-    return this.template!(templateData); // ! porque sabemos que foi carregado acima
+    return template(templateData);
   }
 
   /**

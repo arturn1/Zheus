@@ -1,11 +1,11 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { TemplateManager } from '../utils/TemplateManager';
 
 export class HelperService {
-  private templateDir: string;
 
   constructor() {
-    this.templateDir = path.join(__dirname, '../templates/domain/helpers');
+    // Templates gerenciados via TemplateManager
   }
 
   /**
@@ -60,7 +60,7 @@ export class HelperService {
    * Gera código C# do Mapper usando template estático
    */
   generateMapper(): string {
-    const templatePath = path.join(this.templateDir, 'mapper.hbs');
-    return fs.readFileSync(templatePath, 'utf-8');
+    const template = TemplateManager.getTemplate('domain/helpers/mapper.hbs');
+    return template({});
   }
 }

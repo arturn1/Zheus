@@ -1,30 +1,26 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import * as Handlebars from 'handlebars';
 import { EntityDefinition, EntityProperty } from '../types/entity';
+import { TemplateManager } from '../utils/TemplateManager';
 
 export class HandlerService {
 
   constructor() {
-    // Templates são carregados dinamicamente a cada uso
+    // Templates são carregados dinamicamente via TemplateManager
   }
 
   /**
    * Carrega o template de handler
    */
-  private loadHandlerTemplate(): HandlebarsTemplateDelegate {
-    const templatePath = path.join(__dirname, '../templates/domain/handlers/handler.hbs');
-    const templateContent = fs.readFileSync(templatePath, 'utf-8');
-    return Handlebars.compile(templateContent);
+  private loadHandlerTemplate() {
+    return TemplateManager.getTemplate('domain/handlers/handler.hbs');
   }
 
   /**
    * Carrega o template de contract (interface IHandler)
    */
-  private loadContractTemplate(): HandlebarsTemplateDelegate {
-    const templatePath = path.join(__dirname, '../templates/domain/handlers/iHandler.hbs');
-    const templateContent = fs.readFileSync(templatePath, 'utf-8');
-    return Handlebars.compile(templateContent);
+  private loadContractTemplate() {
+    return TemplateManager.getTemplate('domain/handlers/iHandler.hbs');
   }
 
   /**

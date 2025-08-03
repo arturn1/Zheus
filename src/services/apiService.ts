@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import * as Handlebars from 'handlebars';
+import { TemplateManager } from '../utils/TemplateManager';
 
 export interface ApiConfigResult {
   success: boolean;
@@ -226,9 +226,8 @@ export class ApiService {
       // Criar BaseController se não existir
       await this.createBaseController(projectPath);
 
-      // Ler template
-      const templateContent = fs.readFileSync(templatePath, 'utf-8');
-      const template = Handlebars.compile(templateContent);
+      // Obter template via TemplateManager
+      const template = TemplateManager.getTemplate('api/controller.hbs');
 
       // Preparar dados para o template
       const templateData = {

@@ -6,7 +6,7 @@ nixPkgs = ["nodejs_20", "dotnet-sdk_8"]
 
 [phases.install]
 cmds = [
-  "npm ci --include=dev"
+  "npm ci"
 ]
 
 [phases.build]

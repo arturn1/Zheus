@@ -1,0 +1,35 @@
+{
+  "projectOptions": {
+    "name": "TaskManagerAPI",
+    "template": "webapi",
+    "framework": "net8.0"
+  },
+  "entities": [
+    {
+      "name": "Task",
+      "properties": [
+        { "name": "Title", "type": "string", "isRequired": true },
+        { "name": "Description", "type": "string", "isRequired": false },
+        { "name": "DueDate", "type": "DateTime?", "isRequired": false },
+        { "name": "IsCompleted", "type": "bool", "isRequired": true },
+        { "name": "Priority", "type": "int", "isRequired": true },
+        { "name": "UserId", "type": "Guid", "isRequired": true }
+      ]
+    },
+    {
+      "name": "User",
+      "properties": [
+        { "name": "Name", "type": "string", "isRequired": true },
+        { "name": "Email", "type": "string", "isRequired": true },
+        { "name": "IsActive", "type": "bool", "isRequired": true }
+      ]
+    },
+    {
+      "name": "Category",
+      "properties": [
+        { "name": "Name", "type": "string", "isRequired": true },
+        { "name": "Color", "type": "string", "isRequired": false }
+      ]
+    }
+  ]
+}

@@ -73,26 +73,6 @@ export class RepositoryService {
   }
 
   /**
-   * Gera interfaces de repositório para múltiplas entidades
-   */
-  async generateRepositories(entityNames: string[], domainPath: string): Promise<void> {
-    try {
-      // Primeiro, gerar os arquivos base
-      await this.generateBaseRepositories(domainPath);
-
-      // Depois, gerar repositório para cada entidade
-      for (const entityName of entityNames) {
-        await this.generateEntityRepository(entityName, domainPath);
-      }
-
-      console.log(`✅ Repositórios gerados para ${entityNames.length} entidades`);
-    } catch (error: any) {
-      console.error('❌ Erro ao gerar repositórios:', error.message);
-      throw error;
-    }
-  }
-
-  /**
    * Gera o arquivo IRepository.cs na pasta Contracts
    */
   private async generateRepositoryContract(contractsPath: string): Promise<void> {
@@ -119,11 +99,40 @@ export class RepositoryService {
   }
 
   /**
-   * Valida se um arquivo de repositório específico existe
+   * Método unificado para gerar repositórios (base + entidades específicas)
    */
-  async validateRepositoryExists(entityName: string, domainPath: string): Promise<boolean> {
-    const filePath = path.join(domainPath, 'Repositories', `I${entityName}Repository.cs`);
-    return fs.existsSync(filePath);
+  async generateAllRepositories(domainPath: string, entities?: string[]): Promise<{
+    baseFiles: string[];
+    entityFiles: string[];
+    totalFiles: number;
+  }> {
+    try {
+      const result = {
+        baseFiles: [] as string[],
+        entityFiles: [] as string[],
+        totalFiles: 0
+      };
+
+      // 1. Sempre gerar arquivos base (estáticos)
+      await this.generateBaseRepositories(domainPath);
+      result.baseFiles = ['IRepository.cs', 'IRepositoryBase.cs'];
+
+      // 2. Gerar repositórios específicos se entidades fornecidas
+      if (entities && entities.length > 0) {
+        for (const entityName of entities) {
+          await this.generateEntityRepository(entityName, domainPath);
+          result.entityFiles.push(`I${entityName}Repository.cs`);
+        }
+      }
+
+      result.totalFiles = result.baseFiles.length + result.entityFiles.length;
+
+      console.log(`✅ ${result.totalFiles} arquivos de repositório gerados (${result.baseFiles.length} base + ${result.entityFiles.length} específicos)`);
+      return result;
+    } catch (error: any) {
+      console.error('❌ Erro ao gerar repositórios:', error.message);
+      throw error;
+    }
   }
 
   /**

@@ -148,13 +148,14 @@ export class CommandService {
    * Prepara dados para o template de comando
    */
   private prepareCommandTemplateData(definition: EntityDefinition, includeId: boolean, commandType: 'Create' | 'Update' = 'Create') {
-    // Para comandos Create, incluir todas as propriedades (exceto Id se includeId for false)
-    const properties = definition.properties.filter(p => {
-      if (p.name.toLowerCase().includes('id') && !includeId) {
-        return false;
-      }
-      return true;
-    });
+    // Verificar se a entidade já tem uma propriedade Id
+    const hasIdProperty = definition.properties.some(p => p.name.toLowerCase() === 'id');
+    
+    // Se já tem propriedade Id na entidade, não incluir o Guid Id padrão
+    const shouldIncludeGuidId = includeId && !hasIdProperty;
+    
+    // Para comandos Create, incluir todas as propriedades
+    const properties = definition.properties;
     
     const hasCollections = properties.some(p => p.isCollection);
     const hasEntities = properties.some(p => p.isNavigationProperty);
@@ -190,7 +191,7 @@ export class CommandService {
       name: `${commandType}${definition.name}Command`,
       entityName: definition.name,
       folderName: `${definition.name}Commands`,
-      id: includeId,
+      id: shouldIncludeGuidId,
       hasCollections,
       hasEntities,
       structureConstructor: constructorParams,

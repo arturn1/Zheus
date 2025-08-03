@@ -1,0 +1,32 @@
+using Application.Dictionary;
+using Domain.Repositories.Contracts;
+using Domain.Repositories;
+using Infrastructure.Repositories;
+using Domain.Handlers;
+using Domain.Helpers;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace IoC
+{
+    public class NativeInjectorBootStrapper
+    {
+        public static void RegisterServices(IServiceCollection services)
+        {
+            // Registrar DefaultDictionary
+            services.AddSingleton<DefaultDictionary>();
+
+            #region Repositories
+            #endregion
+
+            #region Handlers
+            #endregion
+
+            #region Services
+            #endregion
+
+            #region Helpers
+            services.AddSingleton<IMapper, Mapper>();
+            #endregion
+        }
+    }
+}

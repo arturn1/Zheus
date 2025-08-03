@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import * as path from 'path';
 import { asyncHandler, ResponseUtils } from '../utils/responseUtils';
 import { ProjectService } from '../services/projectService';
 import { EntityService } from '../services/entityService';
@@ -6,6 +7,17 @@ import { CommandService } from '../services/commandService';
 import { HandlerService } from '../services/handlerService';
 import { RepositoryService } from '../services/repositoryService';
 import { HelperService } from '../services/helperService';
+import { IoCService } from '../services/iocService';
+import { ApiService } from '../services/apiService';
+import { ApplicationService } from '../services/applicationService';
+import { InfrastructureService } from '../services/infrastructureService';
+import { nugetService } from '../services/nugetService';
+import { 
+  ScaffoldRequest, 
+  ScaffoldResult, 
+  ScaffoldValidationResult,
+  ApiResponse 
+} from '../types/common';
 
 export class ProjectController {
   private projectService: ProjectService;
@@ -14,6 +26,10 @@ export class ProjectController {
   private handlerService: HandlerService;
   private repositoryService: RepositoryService;
   private helperService: HelperService;
+  private iocService: IoCService;
+  private apiService: ApiService;
+  private applicationService: ApplicationService;
+  private infrastructureService: InfrastructureService;
 
   constructor() {
     this.projectService = new ProjectService();
@@ -22,6 +38,10 @@ export class ProjectController {
     this.handlerService = new HandlerService();
     this.repositoryService = new RepositoryService();
     this.helperService = new HelperService();
+    this.iocService = new IoCService();
+    this.apiService = new ApiService();
+    this.applicationService = new ApplicationService();
+    this.infrastructureService = new InfrastructureService();
   }
 
   /**
@@ -62,7 +82,7 @@ export class ProjectController {
    * Valida um projeto completo sem criar arquivos
    * POST /api/project/validate-scaffold
    */
-  public validateScaffold = asyncHandler(async (req: Request, res: Response) => {
+  public validateScaffold = asyncHandler(async (req: Request<{}, ApiResponse<ScaffoldValidationResult>, ScaffoldRequest>, res: Response<ApiResponse<ScaffoldValidationResult>>) => {
     const { projectOptions, entities } = req.body;
     
     // Validações básicas
@@ -85,10 +105,115 @@ export class ProjectController {
   });
 
   /**
+   * Cria um projeto completo com entidades e comandos e retorna como ZIP
+   * POST /api/project/scaffold-download
+   */
+  public scaffoldProjectDownload = asyncHandler(async (req: Request<{}, any, ScaffoldRequest>, res: Response): Promise<void> => {
+    const { projectOptions, entities } = req.body;
+    
+    // Validações básicas
+    const validationError = this.validateScaffoldRequest(projectOptions, entities);
+    if (validationError) {
+      ResponseUtils.badRequest(res, validationError);
+      return;
+    }
+
+    const fs = require('fs');
+    const path = require('path');
+    const tempDir = path.join(process.cwd(), 'temp');
+
+    try {
+      // Criar diretório temporário se não existir
+      if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true });
+      }
+
+      const results = this.initializeScaffoldResults();
+      const tempProjectPath = path.join(tempDir, projectOptions.name);
+
+      // 1. Criar o projeto no diretório temporário
+      console.log(`🚀 Criando projeto temporário: ${projectOptions.name}`);
+      const tempProjectOptions = { ...projectOptions, outputPath: tempDir };
+      const projectResult = await this.createProjectStep(tempProjectOptions);
+      
+      if (!projectResult.success) {
+        ResponseUtils.error(res, 
+          `Falha ao criar projeto: ${projectResult.message}`, 400);
+        return;
+      }
+
+      results.project = {
+        success: projectResult.success,
+        projectPath: projectResult.projectPath,
+        message: projectResult.message
+      };
+      results.summary.projectCreated = true;
+
+      // 2-9. Executar todas as etapas de geração (mesmo código do scaffoldProject)
+      await this.generateBaseRepositories(tempProjectPath, results);
+      await this.generateDomainHelpers(tempProjectPath, results);
+      await this.generateEntitiesAndCompleteBoilerplate(tempProjectPath, entities, results);
+      await this.generateInfrastructureLayer(tempProjectPath, entities, results);
+      await this.generateApplicationLayer(tempProjectPath, results);
+      await this.updateIoCRegistrations(tempProjectPath, entities, results);
+      await this.generateApiConfigurations(tempProjectPath, entities, results);
+      await this.installNuGetPackages(tempProjectPath, results);
+
+      console.log(`📦 Criando arquivo ZIP para download...`);
+
+      // Configurar headers para download do arquivo ZIP
+      const zipFileName = `${projectOptions.name}.zip`;
+      res.setHeader('Content-Type', 'application/zip');
+      res.setHeader('Content-Disposition', `attachment; filename="${zipFileName}"`);
+
+      // Criar arquivo ZIP
+      const archiver = require('archiver');
+      const archive = archiver('zip', { zlib: { level: 9 } });
+      
+      // Pipe do arquivo para a response
+      archive.pipe(res);
+
+      // Adicionar todo o diretório do projeto ao ZIP
+      archive.directory(tempProjectPath, projectOptions.name);
+
+      // Finalizar o arquivo
+      await archive.finalize();
+
+      console.log(`✅ Projeto ${projectOptions.name} enviado como ZIP`);
+
+      // Limpeza: remover diretório temporário após um delay
+      setTimeout(() => {
+        try {
+          fs.rmSync(tempProjectPath, { recursive: true, force: true });
+          console.log(`🧹 Diretório temporário removido: ${tempProjectPath}`);
+        } catch (cleanupError) {
+          console.warn(`⚠️ Erro ao limpar diretório temporário: ${cleanupError}`);
+        }
+      }, 5000); // 5 segundos de delay
+
+    } catch (error: any) {
+      console.error('❌ Erro durante o scaffold e download do projeto:', error);
+      
+      // Tentar limpar diretório temporário em caso de erro
+      try {
+        const tempProjectPath = path.join(tempDir, projectOptions.name);
+        if (fs.existsSync(tempProjectPath)) {
+          fs.rmSync(tempProjectPath, { recursive: true, force: true });
+        }
+      } catch (cleanupError) {
+        console.warn(`⚠️ Erro ao limpar após falha: ${cleanupError}`);
+      }
+
+      ResponseUtils.error(res, 
+        `Erro interno durante a criação do projeto: ${error?.message || 'Erro desconhecido'}`, 500);
+    }
+  });
+
+  /**
    * Cria um projeto completo com entidades e comandos
    * POST /api/project/scaffold
    */
-  public scaffoldProject = asyncHandler(async (req: Request, res: Response) => {
+  public scaffoldProject = asyncHandler(async (req: Request<{}, ApiResponse<ScaffoldResult>, ScaffoldRequest>, res: Response<ApiResponse<ScaffoldResult>>) => {
     const { projectOptions, entities } = req.body;
     
     // Validações básicas
@@ -107,7 +232,11 @@ export class ProjectController {
           `Falha ao criar projeto: ${projectResult.message}`, 400);
       }
 
-      results.project = projectResult;
+      results.project = {
+        success: projectResult.success,
+        projectPath: projectResult.projectPath,
+        message: projectResult.message
+      };
       results.summary.projectCreated = true;
       
       const projectPath = projectResult.projectPath || `${process.cwd()}/${projectOptions.name}`;
@@ -121,7 +250,23 @@ export class ProjectController {
       // 4. Gerar entidades e todo o boilerplate CQRS
       await this.generateEntitiesAndCompleteBoilerplate(projectPath, entities, results);
 
-      // 5. Retornar resultado consolidado
+      // 5. Gerar camada Infrastructure (Database, DbContext, Repositories)
+      await this.generateInfrastructureLayer(projectPath, entities, results);
+
+      // 6. Gerar camada Application (Dictionary e DTOs)
+      await this.generateApplicationLayer(projectPath, results);
+
+      // 7. Atualizar registros IoC com todas as entidades geradas
+      await this.updateIoCRegistrations(projectPath, entities, results);
+
+      // 8. Gerar configurações da API
+      await this.generateApiConfigurations(projectPath, entities, results);
+
+      // 9. Instalar packages NuGet necessários
+      await this.installNuGetPackages(projectPath, results);
+
+      // 10. Retornar resultado consolidado
+      this.updateSummaryWithApiInfo(results);
       const message = this.buildSuccessMessage(projectOptions.name, results.summary);
       return ResponseUtils.success(res, results, message, 201);
 
@@ -150,13 +295,13 @@ export class ProjectController {
   /**
    * Inicializa a estrutura de resultados do scaffold
    */
-  private initializeScaffoldResults() {
+  private initializeScaffoldResults(): ScaffoldResult {
     return {
-      project: {} as any,
-      entities: [] as any[],
-      commands: [] as any[],
-      handlers: [] as any[],
-      repositories: [] as any[],
+      project: { success: false, projectPath: undefined, message: '' },
+      entities: [],
+      commands: [],
+      handlers: [],
+      repositories: [],
       summary: {
         projectCreated: false,
         entitiesGenerated: 0,
@@ -263,6 +408,338 @@ export class ProjectController {
     }
     
     console.log(`\n🎉 Processo concluído para ${entities.length} entidades`);
+  }
+
+  /**
+   * Atualiza os registros IoC com todas as entidades geradas
+   */
+  private async updateIoCRegistrations(projectPath: string, entities: any[], results: any) {
+    console.log(`\n🔧 Atualizando registros IoC...`);
+    
+    try {
+      // Extrair nomes das entidades que foram criadas com sucesso
+      const successfulEntities = entities
+        .filter((_, index) => results.entities[index]?.success)
+        .map(entity => entity.name);
+
+      if (successfulEntities.length === 0) {
+        console.log(`  ⚠️ Nenhuma entidade criada com sucesso - IoC não será atualizada`);
+        return;
+      }
+
+      console.log(`  📋 Registrando ${successfulEntities.length} entidades na IoC...`);
+      
+      // Adicionar registros IoC para todas as entidades
+      const iocResult = await this.iocService.addMultipleEntityRegistrations(projectPath, successfulEntities);
+      
+      if (iocResult.success) {
+        console.log(`  ✅ ${iocResult.message}`);
+        console.log(`  📄 Arquivo: ${iocResult.filePath}`);
+        
+        // Adicionar informação sobre IoC no resultado
+        results.ioc = {
+          success: true,
+          registrations: iocResult.registrations?.length || 0,
+          entities: successfulEntities,
+          message: iocResult.message
+        };
+      } else {
+        console.warn(`  ⚠️ Aviso IoC: ${iocResult.message}`);
+        results.ioc = {
+          success: false,
+          message: iocResult.message
+        };
+      }
+
+    } catch (error: any) {
+      console.error('❌ Erro ao atualizar registros IoC:', error);
+      results.ioc = {
+        success: false,
+        message: `Erro ao atualizar IoC: ${error.message}`
+      };
+    }
+  }
+
+  /**
+   * Gera a camada Infrastructure (Database, DbContext, Repositories)
+   */
+  private async generateInfrastructureLayer(projectPath: string, entities: any[], results: any) {
+    console.log(`\n🏗️  Gerando camada Infrastructure...`);
+    
+    try {
+      console.log(`  🛠️  Criando Database Configuration e DbContext...`);
+      
+      // Gerar camada Infrastructure
+      const infrastructureResult = await this.infrastructureService.createInfrastructureLayer(projectPath, entities);
+      
+      if (infrastructureResult.success) {
+        console.log(`  ✅ ${infrastructureResult.message}`);
+        if (infrastructureResult.files?.length) {
+          console.log(`  📁 Arquivos criados: ${infrastructureResult.files.length}`);
+          infrastructureResult.files.forEach(file => console.log(`     - ${file}`));
+        }
+
+        // Adicionar entidades ao ApplicationDbContext dinamicamente
+        await this.updateApplicationDbContext(projectPath, entities, results);
+        
+        // Adicionar informação sobre Infrastructure no resultado
+        results.infrastructure = {
+          success: true,
+          filesCreated: infrastructureResult.files?.length || 0,
+          message: infrastructureResult.message,
+          files: infrastructureResult.files || []
+        };
+        
+        // Atualizar summary
+        results.summary.totalFiles += infrastructureResult.files?.length || 0;
+      } else {
+        console.log(`  ❌ Erro na camada Infrastructure: ${infrastructureResult.message}`);
+        results.infrastructure = {
+          success: false,
+          message: infrastructureResult.message,
+          files: []
+        };
+      }
+    } catch (error: any) {
+      console.error('❌ Erro ao gerar camada Infrastructure:', error);
+      results.infrastructure = {
+        success: false,
+        message: `Erro interno: ${error?.message || 'Erro desconhecido'}`,
+        files: []
+      };
+    }
+  }
+
+  /**
+   * Gera a camada Application (Dictionary e DTOs)
+   */
+  private async generateApplicationLayer(projectPath: string, results: any) {
+    console.log(`\n🔧 Gerando camada Application...`);
+    
+    try {
+      console.log(`  📋 Criando Dictionary e DTOs...`);
+      
+      // Gerar camada Application
+      const applicationResult = await this.applicationService.createApplicationLayer(projectPath);
+      
+      if (applicationResult.success) {
+        console.log(`  ✅ ${applicationResult.message}`);
+        if (applicationResult.files?.length) {
+          console.log(`  📁 Arquivos criados: ${applicationResult.files.length}`);
+          applicationResult.files.forEach(file => console.log(`     - ${file}`));
+        }
+        
+        // Adicionar informação sobre Application no resultado
+        results.application = {
+          success: true,
+          filesCreated: applicationResult.files?.length || 0,
+          message: applicationResult.message,
+          files: applicationResult.files || []
+        };
+      } else {
+        console.warn(`  ⚠️ Aviso Application: ${applicationResult.message}`);
+        results.application = {
+          success: false,
+          message: applicationResult.message
+        };
+      }
+
+    } catch (error: any) {
+      console.error('❌ Erro ao gerar camada Application:', error);
+      results.application = {
+        success: false,
+        message: `Erro ao gerar Application: ${error.message}`
+      };
+    }
+  }
+
+  /**
+   * Gera as configurações da API (DependencyInjection, Environment, Swagger)
+   */
+  private async generateApiConfigurations(projectPath: string, entities: any[], results: any) {
+    console.log(`\n🔧 Gerando configurações da API...`);
+    
+    try {
+      console.log(`  📋 Criando configurações para ${entities.length} entidades...`);
+      
+      // Gerar configurações da API
+      const apiOptions = {
+        projectName: path.basename(projectPath),
+        swagger: {
+          title: `${path.basename(projectPath)} API`,
+          version: '1.0.0',
+          description: `API para gerenciamento do sistema ${path.basename(projectPath)}`
+        }
+      };
+
+      const apiResult = await this.apiService.createApiConfigurations(projectPath, apiOptions);
+      
+      if (apiResult.success) {
+        console.log(`  ✅ ${apiResult.message}`);
+        if (apiResult.files?.length) {
+          console.log(`  📁 Arquivos criados: ${apiResult.files.length}`);
+          apiResult.files.forEach(file => console.log(`     - ${file}`));
+        }
+        
+        // Gerar controllers para cada entidade
+        const controllerResults = [];
+        for (const entity of entities) {
+          const controllerResult = await this.apiService.createEntityController(projectPath, entity.name);
+          controllerResults.push(controllerResult);
+          if (controllerResult.success) {
+            console.log(`  🎮 Controller criado para ${entity.name}: ${controllerResult.filePath}`);
+          }
+        }
+
+        // Adicionar informação sobre API no resultado
+        results.api = {
+          success: true,
+          configurationsCreated: apiResult.files?.length || 0,
+          controllersCreated: controllerResults.filter(r => r.success).length,
+          entities: entities.map(e => e.name),
+          message: apiResult.message,
+          files: [
+            ...(apiResult.files || []),
+            ...controllerResults.filter(r => r.success).map(r => r.filePath).filter(Boolean)
+          ]
+        };
+      } else {
+        console.warn(`  ⚠️ Aviso API: ${apiResult.message}`);
+        results.api = {
+          success: false,
+          message: apiResult.message
+        };
+      }
+
+    } catch (error: any) {
+      console.error('❌ Erro ao gerar configurações da API:', error);
+      results.api = {
+        success: false,
+        message: `Erro ao gerar API: ${error.message}`
+      };
+    }
+  }
+
+  /**
+   * Instala packages NuGet necessários nos projetos gerados
+   */
+  private async installNuGetPackages(projectPath: string, results: any) {
+    console.log(`\n📦 Instalando packages NuGet...`);
+    
+    try {
+      // Verificar se .NET SDK está disponível
+      const sdkCheck = await nugetService.checkDotNetSDK();
+      if (!sdkCheck.available) {
+        console.warn(`  ⚠️ .NET SDK não encontrado: ${sdkCheck.error}`);
+        results.nuget = {
+          success: false,
+          message: `⚠️ .NET SDK não disponível - packages não instalados: ${sdkCheck.error}`
+        };
+        return;
+      }
+
+      console.log(`  ✅ .NET SDK ${sdkCheck.version} encontrado`);
+      
+      // Instalar packages nos projetos
+      const packageResults = await nugetService.installProjectPackages(projectPath);
+      
+      if (packageResults.summary.success) {
+        console.log(`  🎉 Todos os packages instalados com sucesso!`);
+        console.log(`     📊 Total: ${packageResults.summary.totalPackages} packages`);
+        console.log(`     ✅ Infrastructure: ${packageResults.infrastructure.packages.length} packages`);
+        console.log(`     ✅ Application: ${packageResults.application.packages.length} packages`);
+        console.log(`     ✅ API: ${packageResults.api.packages.length} packages`);
+        
+        results.nuget = {
+          success: true,
+          totalPackages: packageResults.summary.totalPackages,
+          infrastructure: packageResults.infrastructure,
+          application: packageResults.application,
+          api: packageResults.api,
+          message: `🎉 ${packageResults.summary.totalPackages} packages NuGet instalados com sucesso`
+        };
+      } else {
+        console.warn(`  ⚠️ Alguns packages falharam na instalação:`);
+        console.warn(`     ❌ Falhas: ${packageResults.summary.failedInstalls}`);
+        console.warn(`     ✅ Sucessos: ${packageResults.summary.successfulInstalls}`);
+        
+        results.nuget = {
+          success: false,
+          totalPackages: packageResults.summary.totalPackages,
+          successfulInstalls: packageResults.summary.successfulInstalls,
+          failedInstalls: packageResults.summary.failedInstalls,
+          infrastructure: packageResults.infrastructure,
+          application: packageResults.application,
+          api: packageResults.api,
+          message: `⚠️ Instalação parcial: ${packageResults.summary.successfulInstalls}/${packageResults.summary.totalPackages} packages instalados`
+        };
+      }
+
+    } catch (error: any) {
+      console.error('❌ Erro ao instalar packages NuGet:', error);
+      results.nuget = {
+        success: false,
+        message: `❌ Erro ao instalar packages: ${error.message}`
+      };
+    }
+  }
+
+  /**
+   * Atualiza o ApplicationDbContext adicionando as entidades dinamicamente
+   */
+  private async updateApplicationDbContext(projectPath: string, entities: any[], results: any) {
+    console.log(`  🔄 Atualizando ApplicationDbContext com entidades...`);
+    
+    try {
+      // Extrair nomes das entidades que foram criadas com sucesso
+      const successfulEntities = entities
+        .filter((_, index) => results.entities[index]?.success)
+        .map(entity => entity.name);
+
+      if (successfulEntities.length === 0) {
+        console.log(`    ⚠️ Nenhuma entidade criada com sucesso - ApplicationDbContext não será atualizado`);
+        return;
+      }
+
+      console.log(`    📋 Adicionando ${successfulEntities.length} entidades ao ApplicationDbContext...`);
+      
+      // Adicionar entidades ao ApplicationDbContext
+      const dbContextResult = await this.infrastructureService.addMultipleEntitiesToDbContext(projectPath, successfulEntities);
+      
+      if (dbContextResult.success) {
+        console.log(`    ✅ ${dbContextResult.message}`);
+        
+        // Atualizar resultado da Infrastructure
+        if (results.infrastructure) {
+          results.infrastructure.dbContextUpdated = {
+            success: true,
+            entitiesAdded: successfulEntities,
+            message: dbContextResult.message
+          };
+        }
+      } else {
+        console.warn(`    ⚠️ Aviso ApplicationDbContext: ${dbContextResult.message}`);
+        
+        // Atualizar resultado da Infrastructure
+        if (results.infrastructure) {
+          results.infrastructure.dbContextUpdated = {
+            success: false,
+            message: dbContextResult.message
+          };
+        }
+      }
+
+    } catch (error: any) {
+      console.error('    ❌ Erro ao atualizar ApplicationDbContext:', error);
+      
+      // Atualizar resultado da Infrastructure
+      if (results.infrastructure) {
+        results.infrastructure.dbContextUpdated = {
+          success: false,
+          message: `Erro ao atualizar ApplicationDbContext: ${error.message}`
+        };
+      }
+    }
   }
 
   /**
@@ -401,16 +878,57 @@ export class ProjectController {
    * Constrói mensagem de sucesso final detalhada
    */
   private buildSuccessMessage(projectName: string, summary: any): string {
-    return `🎉 Projeto Clean Architecture '${projectName}' criado com sucesso!\n` +
+    const baseMessage = `🎉 Projeto Clean Architecture '${projectName}' criado com sucesso!\n` +
       `📊 Geradas ${summary.entitiesGenerated} entidades com boilerplate completo:\n` +
       `   ⚡ ${summary.commandsGenerated} comandos CQRS (Create/Update)\n` +
       `   🎯 ${summary.handlersGenerated || 0} handlers de negócio\n` +
-      `   🗄️  ${summary.repositoriesGenerated || 0} interfaces de repositório\n` +
-      `📁 Total: ${summary.totalFiles} arquivos gerados`;
+      `   🗄️  ${summary.repositoriesGenerated || 0} interfaces de repositório\n`;
+
+    let message = baseMessage;
+
+    // Adicionar informações da Application se foram criadas
+    if (summary.applicationFilesCreated) {
+      message += `   📚 ${summary.applicationFilesCreated || 0} arquivos da Application\n`;
+    }
+    
+    // Adicionar informações da API se foram criadas
+    if (summary.apiConfigurationsCreated || summary.apiControllersCreated) {
+      message += `   🔧 ${summary.apiConfigurationsCreated || 0} configurações da API\n`;
+      message += `   🎮 ${summary.apiControllersCreated || 0} controllers REST\n`;
+    }
+
+    // Adicionar informações dos packages NuGet se foram instalados
+    if (summary.nugetPackages) {
+      message += `   � ${summary.nugetPackages} packages NuGet instalados\n`;
+    }
+
+    message += `📁 Total: ${summary.totalFiles} arquivos gerados`;
+    
+    return message;
   }
 
   /**
-   * Executa validação completa do scaffold sem criar arquivos
+   * Atualiza o summary com informações da API e Application
+   */
+  private updateSummaryWithApiInfo(results: any) {
+    if (results.application?.success) {
+      results.summary.applicationFilesCreated = results.application.filesCreated || 0;
+      results.summary.totalFiles += (results.application.files?.length || 0);
+    }
+    
+    if (results.api?.success) {
+      results.summary.apiConfigurationsCreated = results.api.configurationsCreated || 0;
+      results.summary.apiControllersCreated = results.api.controllersCreated || 0;
+      results.summary.totalFiles += (results.api.files?.length || 0);
+    }
+
+    if (results.nuget?.success) {
+      results.summary.nugetPackages = results.nuget.totalPackages || 0;
+    }
+  }
+
+  /**
+   * Execução da validação de scaffold que não cria arquivos físicos
    */
   private async performScaffoldValidation(projectOptions: any, entities: any[]) {
     const validation = {

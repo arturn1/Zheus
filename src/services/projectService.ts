@@ -4,14 +4,29 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { ProjectCreationOptions, ProjectCreationResult } from '../types/project';
 import { DotNetService } from './dotNetService';
+import { IoCService } from './iocService';
+import { ApplicationService } from './applicationService';
+import { InfrastructureService } from './infrastructureService';
+import { ApiService } from './apiService';
+import { NuGetService } from './nugetService';
 
 const execAsync = promisify(exec);
 
 export class ProjectService {
   private dotNetService: DotNetService;
+  private iocService: IoCService;
+  private applicationService: ApplicationService;
+  private infrastructureService: InfrastructureService;
+  private apiService: ApiService;
+  private nugetService: NuGetService;
 
   constructor() {
     this.dotNetService = new DotNetService();
+    this.iocService = new IoCService();
+    this.applicationService = new ApplicationService();
+    this.infrastructureService = new InfrastructureService();
+    this.apiService = new ApiService();
+    this.nugetService = new NuGetService();
   }
 
   /**
@@ -38,7 +53,7 @@ export class ProjectService {
         };
       }
 
-      const template = options.template || 'console';
+      const template = options.template || 'webapi';
       const framework = options.framework || 'net8.0';
       const language = options.language || 'C#';
       const outputPath = options.outputPath || process.cwd();
@@ -107,6 +122,7 @@ export class ProjectService {
     const iCommandResultTemplate = fs.readFileSync(path.join(__dirname, '../templates/domain/commands/iCommandResult.hbs'), 'utf-8');
     const commandResultTemplate = fs.readFileSync(path.join(__dirname, '../templates/domain/commands/commandResult.hbs'), 'utf-8');
     const iCommandTemplate = fs.readFileSync(path.join(__dirname, '../templates/domain/commands/iCommand.hbs'), 'utf-8');
+    const iRepositoryBaseTemplate = fs.readFileSync(path.join(__dirname, '../templates/domain/repositories/contracts/iRepositoryBase.hbs'), 'utf-8');
     
     // Criar arquivos
     fs.writeFileSync(path.join(domainPath, 'Validation', 'Validatable.cs'), validatableTemplate);
@@ -115,6 +131,7 @@ export class ProjectService {
     fs.writeFileSync(path.join(domainPath, 'Commands', 'Contracts', 'ICommandResult.cs'), iCommandResultTemplate);
     fs.writeFileSync(path.join(domainPath, 'Commands', 'Contracts', 'ICommand.cs'), iCommandTemplate);
     fs.writeFileSync(path.join(domainPath, 'Commands', 'CommandResult.cs'), commandResultTemplate);
+    fs.writeFileSync(path.join(domainPath, 'Repositories', 'Contracts', 'IRepositoryBase.cs'), iRepositoryBaseTemplate);
   }
 
   /**
@@ -224,6 +241,17 @@ export class ProjectService {
 
     // Configurar referências entre projetos
     await this.configureProjectReferences(projectName, rootPath);
+
+    // Instalar pacotes NuGet necessários
+    console.log(`📦 Instalando pacotes NuGet...`);
+    const nugetResult = await this.nugetService.installProjectPackages(rootPath);
+    if (!nugetResult.summary.success) {
+      console.warn(`⚠️ Aviso NuGet: Alguns pacotes falharam na instalação`);
+      console.warn(`   - Sucessos: ${nugetResult.summary.successfulInstalls}`);
+      console.warn(`   - Falhas: ${nugetResult.summary.failedInstalls}`);
+    } else {
+      console.log(`✅ Pacotes NuGet instalados: ${nugetResult.summary.totalPackages} pacote(s)`);
+    }
   }
 
   /**
@@ -231,12 +259,54 @@ export class ProjectService {
    */
   private async createAPIProject(projectName: string, rootPath: string, framework: string): Promise<void> {
     const apiPath = path.join(rootPath, 'API');
+    console.log(`🔧 Criando projeto API em: ${apiPath}`);
     await execAsync(`dotnet new webapi --name "API" --framework ${framework}`, { cwd: rootPath });
 
     // Criar estrutura de pastas
-    const folders = ['Controllers/Contract', 'Configurations', 'Middleware', 'EntityExplorerModule', 'Properties'];
+    const folders = ['Controllers/Contract', 'Configurations', 'Middleware', 'Properties'];
     for (const folder of folders) {
       fs.mkdirSync(path.join(apiPath, folder), { recursive: true });
+    }
+
+    // Substituir Program.cs pelo template customizado
+    console.log(`🔄 Substituindo Program.cs em: ${apiPath}`);
+    await this.replaceProgramCs(apiPath);
+
+    // Criar arquivos de configuração usando ApiService
+    const apiResult = await this.apiService.createApiConfigurations(rootPath, { 
+      projectName: projectName,
+      swagger: { title: `${projectName} API`, version: '1.0', description: `API for ${projectName}` }
+    });
+    if (!apiResult.success) {
+      console.warn(`⚠️ Aviso API: ${apiResult.message}`);
+    } else {
+      console.log(`✅ Arquivos de configuração da API criados: ${apiResult.files?.length || 0} arquivo(s)`);
+    }
+  }
+
+  /**
+   * Substitui o Program.cs padrão pelo template customizado
+   */
+  private async replaceProgramCs(apiPath: string): Promise<void> {
+    try {
+      const templatePath = path.join(__dirname, '..', 'templates', 'api', 'Program.cs.hbs');
+      const programPath = path.join(apiPath, 'Program.cs');
+
+      // Verificar se o template existe
+      if (!fs.existsSync(templatePath)) {
+        console.warn(`⚠️ Template Program.cs não encontrado em: ${templatePath}`);
+        return;
+      }
+
+      // Ler o template
+      const templateContent = fs.readFileSync(templatePath, 'utf8');
+      
+      // Escrever o novo Program.cs (sem processamento Handlebars pois não tem variáveis)
+      fs.writeFileSync(programPath, templateContent, 'utf8');
+      
+      console.log(`✅ Program.cs customizado criado em: ${programPath}`);
+    } catch (error) {
+      console.error(`❌ Erro ao substituir Program.cs:`, error);
     }
   }
 
@@ -270,10 +340,24 @@ export class ProjectService {
     const appPath = path.join(rootPath, 'Application');
     await execAsync(`dotnet new classlib --name "Application" --framework ${framework}`, { cwd: rootPath });
 
+    // Remover Class1.cs criado automaticamente pelo dotnet new classlib
+    const class1Path = path.join(appPath, 'Class1.cs');
+    if (fs.existsSync(class1Path)) {
+      fs.unlinkSync(class1Path);
+    }
+
     // Criar estrutura de pastas
-    const folders = ['DTOs', 'Services', 'Interfaces', 'Dictionary'];
+    const folders = ['DTOs', 'DTOs/Response','Services', 'Interfaces', 'Dictionary'];
     for (const folder of folders) {
       fs.mkdirSync(path.join(appPath, folder), { recursive: true });
+    }
+
+    // Criar arquivos base usando ApplicationService
+    const appResult = await this.applicationService.createApplicationLayer(rootPath);
+    if (!appResult.success) {
+      console.warn(`⚠️ Aviso Application: ${appResult.message}`);
+    } else {
+      console.log(`✅ Arquivos da camada Application criados: ${appResult.files?.length || 0} arquivo(s)`);
     }
   }
 
@@ -284,10 +368,24 @@ export class ProjectService {
     const infraPath = path.join(rootPath, 'Infrastructure');
     await execAsync(`dotnet new classlib --name "Infrastructure" --framework ${framework}`, { cwd: rootPath });
 
+    // Remover Class1.cs criado automaticamente pelo dotnet new classlib
+    const class1Path = path.join(infraPath, 'Class1.cs');
+    if (fs.existsSync(class1Path)) {
+      fs.unlinkSync(class1Path);
+    }
+
     // Criar estrutura de pastas
-    const folders = ['Data', 'Repositories', 'Migrations', 'Configuration'];
+    const folders = ['Data', 'Repositories', 'Repositories/Contracts', 'Migrations', 'Configuration'];
     for (const folder of folders) {
       fs.mkdirSync(path.join(infraPath, folder), { recursive: true });
+    }
+
+    // Criar arquivos base usando InfrastructureService
+    const infraResult = await this.infrastructureService.createInfrastructureLayer(rootPath);
+    if (!infraResult.success) {
+      console.warn(`⚠️ Aviso Infrastructure: ${infraResult.message}`);
+    } else {
+      console.log(`✅ Arquivos da camada Infrastructure criados: ${infraResult.files?.length || 0} arquivo(s)`);
     }
   }
 
@@ -297,6 +395,20 @@ export class ProjectService {
   private async createIoCProject(projectName: string, rootPath: string, framework: string): Promise<void> {
     const iocPath = path.join(rootPath, 'IoC');
     await execAsync(`dotnet new classlib --name "IoC" --framework ${framework}`, { cwd: rootPath });
+
+    // Remover Class1.cs criado automaticamente pelo dotnet new classlib
+    const class1Path = path.join(iocPath, 'Class1.cs');
+    if (fs.existsSync(class1Path)) {
+      fs.unlinkSync(class1Path);
+    }
+
+    // Criar NativeInjectorBootStrapper
+    const iocResult = await this.iocService.createNativeInjectorBootStrapper(rootPath);
+    if (!iocResult.success) {
+      console.warn(`⚠️ Aviso: ${iocResult.message}`);
+    } else {
+      console.log(`✅ NativeInjectorBootStrapper criado: ${iocResult.filePath}`);
+    }
   }
 
   /**

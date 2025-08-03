@@ -122,31 +122,6 @@ export class EntityService {
   }
 
   /**
-   * Valida definição da entidade
-   */
-  private validateEntityDefinition(entity: EntityDefinition): string | null {
-    if (!entity.name || entity.name.trim() === '') {
-      return 'Nome da entidade é obrigatório';
-    }
-
-    if (entity.properties.length === 0) {
-      return 'Entidade deve ter pelo menos uma propriedade';
-    }
-
-    for (const prop of entity.properties) {
-      if (!prop.name || prop.name.trim() === '') {
-        return 'Nome da propriedade é obrigatório';
-      }
-      
-      if (!prop.type || prop.type.trim() === '') {
-        return 'Tipo da propriedade é obrigatório';
-      }
-    }
-
-    return null;
-  }
-
-  /**
    * Constrói parâmetros do construtor
    */
   private buildConstructorParameters(properties: EntityProperty[]): string {

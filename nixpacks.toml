@@ -1,0 +1,14 @@
+# Railway Nixpacks Configuration
+# Instala Node.js e .NET SDK automaticamente
+
+[phases.setup]
+nixPkgs = ["nodejs_20", "dotnet-sdk_8"]
+
+[phases.install]
+cmd = "npm ci"
+
+[phases.build]
+cmd = "npm run build"
+
+[start]
+cmd = "npm start"

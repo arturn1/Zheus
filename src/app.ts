@@ -4,15 +4,22 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 
+// 🚀 ROTAS PÚBLICAS (Deploy Production)
+import publicProjectRoutes from './routes/projectRoutes.public';
+import { errorHandler } from './middleware/errorHandler';
+import { notFoundHandler } from './middleware/notFoundHandler';
+import healthRoutes from './routes/healthRoutes';
+
+// 🔒 ROTAS PRIVADAS (Desenvolvimento Local)
+// Descomente as linhas abaixo para desenvolvimento local:
+/*
 import dotNetRoutes from './routes/dotNetRoutes';
 import projectRoutes from './routes/projectRoutes';
 import entityRoutes from './routes/entityRoutes';
 import commandRoutes from './routes/commandRoutes';
 import handlerRoutes from './routes/handlerRoutes';
 import repositoryRoutes from './routes/repositoryRoutes';
-import { errorHandler } from './middleware/errorHandler';
-import { notFoundHandler } from './middleware/notFoundHandler';
-import healthRoutes from './routes/healthRoutes';
+*/
 
 // Load environment variables
 dotenv.config();
@@ -49,26 +56,29 @@ class App {
   }
 
   private initializeRoutes(): void {
-    // Health check routes
+    // Health check routes (sempre disponível)
     this.app.use('/api/health', healthRoutes);
     
-    // .NET management routes
-    this.app.use('/api/dotnet', dotNetRoutes);
+    // 🚀 ROTA PÚBLICA: Scaffold Download
+    this.app.use('/api/project', publicProjectRoutes);
     
-    // Project management routes
-    this.app.use('/api/project', projectRoutes);
+    // 🔒 ROTAS PRIVADAS/DESENVOLVIMENTO (comentadas para deploy)
+    // Uncomment para desenvolvimento local:
     
-        // Entity routes
-    this.app.use('/api/entity', entityRoutes);
+    // // .NET management routes
+    // this.app.use('/api/dotnet', dotNetRoutes);
+    
+    // // Entity routes
+    // this.app.use('/api/entity', entityRoutes);
 
-    // Command routes  
-    this.app.use('/api/command', commandRoutes);
+    // // Command routes  
+    // this.app.use('/api/command', commandRoutes);
 
-    // Handler routes
-    this.app.use('/api/handler', handlerRoutes);
+    // // Handler routes
+    // this.app.use('/api/handler', handlerRoutes);
 
-    // Repository routes
-    this.app.use('/api/repository', repositoryRoutes);
+    // // Repository routes
+    // this.app.use('/api/repository', repositoryRoutes);
 
     // Future API versioning
     // this.app.use('/api/v1', apiRoutes);

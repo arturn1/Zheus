@@ -6,19 +6,24 @@
   "scripts": {
     "start": "node dist/server.js",
     "dev": "nodemon src/server.ts",
-    "build": "tsc",
+    "build": "tsc && cp -r src/templates dist/",
     "build:watch": "tsc --watch",
     "clean": "rm -rf dist",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
     "format": "prettier --write src/**/*.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "railway:check": "node --version && npm --version && dotnet --version",
+    "railway:build": "npm run build",
+    "railway:start": "npm start"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@types/archiver": "^6.0.3",
     "@types/handlebars": "^4.1.0",
+    "archiver": "^7.0.1",
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",
     "express": "^5.1.0",

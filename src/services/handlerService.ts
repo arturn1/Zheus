@@ -4,30 +4,27 @@ import * as Handlebars from 'handlebars';
 import { EntityDefinition, EntityProperty } from '../types/entity';
 
 export class HandlerService {
-  private handlerTemplate!: HandlebarsTemplateDelegate;
-  private contractTemplate!: HandlebarsTemplateDelegate;
 
   constructor() {
-    this.loadHandlerTemplate();
-    this.loadContractTemplate();
+    // Templates são carregados dinamicamente a cada uso
   }
 
   /**
    * Carrega o template de handler
    */
-  private loadHandlerTemplate(): void {
+  private loadHandlerTemplate(): HandlebarsTemplateDelegate {
     const templatePath = path.join(__dirname, '../templates/domain/handlers/handler.hbs');
     const templateContent = fs.readFileSync(templatePath, 'utf-8');
-    this.handlerTemplate = Handlebars.compile(templateContent);
+    return Handlebars.compile(templateContent);
   }
 
   /**
    * Carrega o template de contract (interface IHandler)
    */
-  private loadContractTemplate(): void {
+  private loadContractTemplate(): HandlebarsTemplateDelegate {
     const templatePath = path.join(__dirname, '../templates/domain/handlers/iHandler.hbs');
     const templateContent = fs.readFileSync(templatePath, 'utf-8');
-    this.contractTemplate = Handlebars.compile(templateContent);
+    return Handlebars.compile(templateContent);
   }
 
   /**
@@ -97,15 +94,17 @@ export class HandlerService {
    * Gera código C# do handler baseado na definição da entidade
    */
   generateHandler(definition: EntityDefinition): string {
+    const handlerTemplate = this.loadHandlerTemplate();
     const handlerData = this.prepareHandlerTemplateData(definition);
-    return this.handlerTemplate(handlerData);
+    return handlerTemplate(handlerData);
   }
 
   /**
    * Gera código C# da interface IHandler
    */
   generateContract(): string {
-    return this.contractTemplate({});
+    const contractTemplate = this.loadContractTemplate();
+    return contractTemplate({});
   }
 
   /**
